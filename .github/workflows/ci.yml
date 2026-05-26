@@ -1,0 +1,100 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      jobs:
+        test-java-services:
+
+jobs:
+  test-node-services:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - backend-child
+          - backend-mother
+          - frontend
+    defaults:
+      run:
+        working-directory: services/${{ matrix.service }}
+            - name: Setup Java
+              uses: actions/setup-java@v4
+        uses: actions/checkout@v4
+                distribution: temurin
+                java-version: '21'
+                cache: gradle
+
+            - name: Setup Gradle
+              uses: gradle/actions/setup-gradle@v3
+        with:
+
+              run: gradle --no-daemon test
+
+        test-angular-frontend:
+          runs-on: ubuntu-latest
+          defaults:
+            run:
+              working-directory: services/frontend
+          steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                node-version: 20
+
+            - name: Install dependencies
+              run: npm install
+
+            - name: Build Angular app
+              run: npm run build
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+  validate-terraform:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.8.5
+
+      - name: Terraform init
+        run: terraform init -backend=false
+
+      - name: Terraform format check
+        run: terraform fmt -check
+
+      - name: Terraform validate
+        run: terraform validate
+
+  build-images:
+    runs-on: ubuntu-latest
+    needs:
+      - test-java-services
+      - test-angular-frontend
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - backend-child
+          - backend-mother
+          - frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t futurekawa/${{ matrix.service }}:ci ./services/${{ matrix.service }}

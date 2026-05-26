@@ -1,0 +1,35 @@
+<main class="page-shell">
+  <section class="hero">
+    <p class="eyebrow">FutureKawa</p>
+    <h1>Supervision centralisee des backends filles</h1>
+    <p class="lede">
+      Le backend mere Spring Boot interroge les trois noeuds regionaux et ce front Angular
+      affiche leur etat en temps reel.
+    </p>
+    <div class="hero-meta">
+      <span>API: {{ apiUrl }}</span>
+      <button type="button" (click)="refresh()">Actualiser</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <div class="panel-header">
+      <h2>Etat des regions</h2>
+      <p *ngIf="aggregatedAt">Derniere synchro: {{ aggregatedAt | date:'short' }}</p>
+    </div>
+
+    <p class="loading" *ngIf="loading">Chargement des regions...</p>
+    <p class="loading error" *ngIf="errorMessage">Erreur de chargement: {{ errorMessage }}</p>
+
+    <div class="status-grid" *ngIf="!loading && !errorMessage">
+      <article class="status-card" *ngFor="let child of children" [ngClass]="child.available ? 'online' : 'offline'">
+        <div class="status-pill">{{ child.available ? 'ONLINE' : 'OFFLINE' }}</div>
+        <h3>{{ child.data?.country || child.name }}</h3>
+        <p class="region-url">{{ child.url }}</p>
+        <p class="region-message">
+          {{ child.available ? child.data?.message : ('Indisponible: ' + child.error) }}
+        </p>
+      </article>
+    </div>
+  </section>
+</main>
