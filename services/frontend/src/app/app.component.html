@@ -1,34 +1,143 @@
-<main class="page-shell">
-  <section class="hero">
-    <p class="eyebrow">FutureKawa</p>
-    <h1>Supervision centralisee des backends filles</h1>
-    <p class="lede">
-      Le backend mere Spring Boot interroge les trois noeuds regionaux et ce front Angular
-      affiche leur etat en temps reel.
-    </p>
-    <div class="hero-meta">
-      <span>API: {{ apiUrl }}</span>
-      <button type="button" (click)="refresh()">Actualiser</button>
+<main class="cockpit-shell" [ngClass]="cockpitTone">
+  <section class="cockpit-hero">
+    <div class="hero-copy">
+      <p class="kicker">FutureKawa Control Deck</p>
+      <h1>{{ cockpitHeadline }}</h1>
+      <p class="hero-message">{{ cockpitMessage }}</p>
+
+      <div class="hero-actions">
+        <button type="button" (click)="refresh()">Relancer le scan</button>
+        <div class="hero-meta">
+          <span>Backend mere</span>
+          <strong>{{ apiUrl }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-orbit">
+      <div class="orbit-shell">
+        <div class="orbit-ring outer"></div>
+        <div class="orbit-ring inner"></div>
+        <div class="orbit-core">
+          <span>Sante reseau</span>
+          <strong>{{ availabilityPercent }}%</strong>
+          <small>{{ onlineCount }}/{{ totalCount || 0 }} noeuds disponibles</small>
+        </div>
+      </div>
+      <div class="hero-strip">
+        <article>
+          <span>Actifs</span>
+          <strong>{{ onlineCount }}</strong>
+        </article>
+        <article>
+          <span>Hors ligne</span>
+          <strong>{{ offlineCount }}</strong>
+        </article>
+        <article>
+          <span>Derniere synchro</span>
+          <strong>{{ aggregatedAt ? (aggregatedAt | date:'shortTime') : 'pending' }}</strong>
+        </article>
+      </div>
     </div>
   </section>
 
-  <section class="panel">
-    <div class="panel-header">
-      <h2>Etat des regions</h2>
-      <p *ngIf="aggregatedAt">Derniere synchro: {{ aggregatedAt | date:'short' }}</p>
+  <section class="control-grid">
+    <article class="mother-card panel-surface">
+      <div class="panel-head">
+        <div>
+          <p class="panel-label">Hub central</p>
+          <h2>Backend mere</h2>
+        </div>
+        <span class="badge">{{ motherStatusLabel }}</span>
+      </div>
+
+      <div class="mother-matrix">
+        <div>
+          <span>Role</span>
+          <strong>mother</strong>
+        </div>
+        <div>
+          <span>Source</span>
+          <strong>{{ apiUrl }}</strong>
+        </div>
+        <div>
+          <span>Mode</span>
+          <strong>{{ loading ? 'collecte' : 'diffusion' }}</strong>
+        </div>
+      </div>
+
+      <p class="panel-note">
+        {{ loading ? 'Collecte des signaux terrain en cours.' : 'Le hub central agrege les etats regionaux et expose le dashboard.' }}
+      </p>
+    </article>
+
+    <article class="telemetry-card panel-surface">
+      <div class="panel-head">
+        <div>
+          <p class="panel-label">Telemetrie</p>
+          <h2>Lecture instantanee</h2>
+        </div>
+      </div>
+
+      <div class="telemetry-list">
+        <div>
+          <span>Disponibilite</span>
+          <strong>{{ availabilityPercent }}%</strong>
+        </div>
+        <div>
+          <span>Flux observe</span>
+          <strong>{{ totalCount || 0 }} endpoints</strong>
+        </div>
+        <div>
+          <span>Etat UX</span>
+          <strong>{{ errorMessage ? 'incident' : (loading ? 'scan' : 'nominal') }}</strong>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="regions-surface panel-surface">
+    <div class="panel-head wide">
+      <div>
+        <p class="panel-label">Noeuds enfants</p>
+        <h2>Cartographie pays</h2>
+      </div>
+      <p class="panel-note inline">{{ loading ? 'Mise a jour de la grille...' : 'Visualisation produit des points de service regionaux.' }}</p>
     </div>
 
-    <p class="loading" *ngIf="loading">Chargement des regions...</p>
-    <p class="loading error" *ngIf="errorMessage">Erreur de chargement: {{ errorMessage }}</p>
+    <p class="feedback" *ngIf="loading">Chargement des donnees...</p>
+    <p class="feedback error" *ngIf="errorMessage">Erreur de chargement: {{ errorMessage }}</p>
 
-    <div class="status-grid" *ngIf="!loading && !errorMessage">
-      <article class="status-card" *ngFor="let child of children" [ngClass]="child.available ? 'online' : 'offline'">
-        <div class="status-pill">{{ child.available ? 'ONLINE' : 'OFFLINE' }}</div>
-        <h3>{{ child.data?.country || child.name }}</h3>
-        <p class="region-url">{{ child.url }}</p>
-        <p class="region-message">
+    <div class="region-grid" *ngIf="!loading && !errorMessage">
+      <article
+        class="region-card"
+        *ngFor="let child of children; trackBy: trackByName"
+        [ngClass]="child.available ? 'online' : 'offline'"
+      >
+        <div class="card-topline">
+          <span class="signal-dot"></span>
+          <span class="status-pill">{{ child.available ? 'ONLINE' : 'OFFLINE' }}</span>
+        </div>
+
+        <h3>{{ displayCountry(child) }}</h3>
+        <p class="card-summary">
           {{ child.available ? child.data?.message : ('Indisponible: ' + child.error) }}
         </p>
+
+        <dl>
+          <div>
+            <dt>Role</dt>
+            <dd>{{ child.data?.role || 'child' }}</dd>
+          </div>
+          <div>
+            <dt>Endpoint</dt>
+            <dd>{{ child.url }}</dd>
+          </div>
+          <div>
+            <dt>Signal</dt>
+            <dd>{{ child.available ? 'remontee validee' : 'signal interrompu' }}</dd>
+          </div>
+        </dl>
       </article>
     </div>
   </section>

@@ -24,6 +24,102 @@ export class AppComponent implements OnInit {
     this.refresh();
   }
 
+  protected get onlineCount(): number {
+    return this.children.filter((child) => child.available).length;
+  }
+
+  protected get offlineCount(): number {
+    return this.children.filter((child) => !child.available).length;
+  }
+
+  protected get totalCount(): number {
+    return this.children.length;
+  }
+
+  protected get availabilityPercent(): number {
+    if (!this.totalCount) {
+      return 0;
+    }
+
+    return Math.round((this.onlineCount / this.totalCount) * 100);
+  }
+
+  protected get cockpitTone(): 'stable' | 'warning' | 'critical' {
+    if (this.offlineCount === 0 && this.totalCount > 0) {
+      return 'stable';
+    }
+
+    if (this.onlineCount === 0 && this.totalCount > 0) {
+      return 'critical';
+    }
+
+    return 'warning';
+  }
+
+  protected get cockpitHeadline(): string {
+    if (this.loading) {
+      return 'Synchronisation du reseau en cours';
+    }
+
+    if (this.errorMessage) {
+      return 'Perte de visibilite sur l agregation';
+    }
+
+    if (this.cockpitTone === 'stable') {
+      return 'Plateforme stable sur l ensemble des pays';
+    }
+
+    if (this.cockpitTone === 'critical') {
+      return 'Tous les noeuds enfants sont hors ligne';
+    }
+
+    return 'Supervision degradee sur une partie du reseau';
+  }
+
+  protected get cockpitMessage(): string {
+    if (this.loading) {
+      return 'Le backend mere collecte les etats regionaux avant affichage.';
+    }
+
+    if (this.errorMessage) {
+      return `Erreur remontee: ${this.errorMessage}`;
+    }
+
+    if (this.cockpitTone === 'stable') {
+      return 'Tous les backends enfants repondent et la chaine de supervision est operationnelle.';
+    }
+
+    if (this.cockpitTone === 'critical') {
+      return 'Aucun backend enfant ne remonte actuellement de signal exploitable.';
+    }
+
+    return `${this.offlineCount} noeud(x) demandent une intervention tandis que ${this.onlineCount} restent disponibles.`;
+  }
+
+  protected get motherStatusLabel(): string {
+    if (this.loading) {
+      return 'SCAN';
+    }
+
+    if (this.errorMessage) {
+      return 'ALERTE';
+    }
+
+    return this.cockpitTone === 'stable' ? 'NOMINAL' : 'PARTIEL';
+  }
+
+  protected displayCountry(child: ChildStatus): string {
+    if (child.data?.country) {
+      return child.data.country;
+    }
+
+    return child.name.charAt(0).toUpperCase() + child.name.slice(1);
+  }
+
+  protected trackByName(_index: number, child: ChildStatus): string {
+    return child.name;
+  }
+
   protected refresh(): void {
     this.loading = true;
     this.errorMessage = undefined;

@@ -2,10 +2,47 @@ locals {
   children_services = join(",", [
     for name, _child in var.children : "${name}=http://backend-${name}:3000"
   ])
+
+  children_db_names = {
+    for name, _child in var.children : name => "futurekawa_${name}"
+  }
 }
 
 resource "docker_network" "futurekawa" {
   name = "futurekawa-network"
+}
+
+resource "docker_volume" "child_db_data" {
+  for_each = var.children
+  name     = "futurekawa-db-${each.key}-data"
+}
+
+resource "docker_container" "child_db" {
+  for_each = var.children
+
+  name  = "postgres-${each.key}"
+  image = "postgres:16-alpine"
+  env = [
+    "POSTGRES_DB=${local.children_db_names[each.key]}",
+    "POSTGRES_USER=${var.child_db_user}",
+    "POSTGRES_PASSWORD=${var.child_db_password}"
+  ]
+  restart = "unless-stopped"
+
+  upload {
+    file   = "/docker-entrypoint-initdb.d/init.sql"
+    source = "${path.module}/../services/backend-child/Bdd/MSPR5_BDD-1778060454.sql"
+  }
+
+  mounts {
+    type   = "volume"
+    source = docker_volume.child_db_data[each.key].name
+    target = "/var/lib/postgresql/data"
+  }
+
+  networks_advanced {
+    name = docker_network.futurekawa.name
+  }
 }
 
 resource "docker_image" "backend_child" {
@@ -23,7 +60,12 @@ resource "docker_container" "backend_child" {
   image = docker_image.backend_child.image_id
   env = [
     "PORT=3000",
-    "COUNTRY=${each.value.country}"
+    "COUNTRY=${each.value.country}",
+    "DB_HOST=postgres-${each.key}",
+    "DB_PORT=5432",
+    "DB_NAME=${local.children_db_names[each.key]}",
+    "DB_USER=${var.child_db_user}",
+    "DB_PASSWORD=${var.child_db_password}"
   ]
   restart = "unless-stopped"
 
@@ -35,6 +77,8 @@ resource "docker_container" "backend_child" {
     internal = 3000
     external = each.value.external_port
   }
+
+  depends_on = [docker_container.child_db]
 }
 
 resource "docker_image" "backend_mother" {

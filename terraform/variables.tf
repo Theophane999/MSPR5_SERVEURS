@@ -10,6 +10,19 @@ variable "mother_port" {
   default     = 3200
 }
 
+variable "child_db_user" {
+  description = "Utilisateur PostgreSQL pour les bases des backends filles"
+  type        = string
+  default     = "futurekawa"
+}
+
+variable "child_db_password" {
+  description = "Mot de passe PostgreSQL pour les bases des backends filles"
+  type        = string
+  sensitive   = true
+  default     = "futurekawa_pwd"
+}
+
 variable "children" {
   description = "Liste des backends filles a deployer"
   type = map(object({

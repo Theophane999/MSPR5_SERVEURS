@@ -25,10 +25,24 @@ flowchart LR
 ## Stack
 
 - Java 21 + Spring Boot 3 (backend fille et backend mere)
+- PostgreSQL 16 (une base dediee par backend fille)
 - Angular 19 (frontend)
 - Terraform
 - Provider Docker pour Terraform
 - GitHub Actions
+
+## Strategie base de donnees
+
+Choix retenu: meme schema SQL, mais une base dediee par pays.
+
+- C'est le meilleur compromis pour ce projet: on garde un schema unique et on isole les donnees par pays.
+- Chaque backend fille utilise son propre conteneur PostgreSQL (`postgres-brazil`, `postgres-ecuador`, `postgres-colombia`).
+- Le script SQL commun est applique au demarrage de chaque base depuis `services/backend-child/Bdd/MSPR5_BDD-1778060454.sql`.
+
+Avec cette approche, ajouter un nouveau pays via `var.children` cree automatiquement:
+
+- un nouveau backend fille
+- une nouvelle base PostgreSQL dediee
 
 ## Structure
 
@@ -73,6 +87,13 @@ children = {
         external_port = 3104
     }
 }
+```
+
+Tu peux aussi surcharger les credentials PostgreSQL via les variables Terraform:
+
+```hcl
+child_db_user     = "futurekawa"
+child_db_password = "futurekawa_pwd"
 ```
 
 Puis:
@@ -120,12 +141,28 @@ Note Windows: dans cet environnement, `npm` peut etre bloque en PowerShell. Util
 
 ### CI
 
-Le workflow `ci.yml` :
+La CI est desormais entierement geree par Jenkins.
+Le workflow GitHub Actions CI (`.github/workflows/ci.yml`) a ete retire.
 
-- execute les tests Spring Boot (Gradle) pour les backends
-- build le frontend Angular
-- verifie les builds Docker
-- verifie `terraform fmt` et `terraform validate`
+Deux variantes Jenkins sont disponibles:
+
+- [Jenkinsfile](Jenkinsfile): pipeline Jenkins pour noeud Windows (commandes `bat`)
+- [Jenkinsfile.docker](Jenkinsfile.docker): pipeline Jenkins avec agents Docker par stage pour limiter les dependances installees sur le noeud
+
+Les deux pipelines executent:
+
+- les tests Spring Boot (Gradle) sur `backend-child` et `backend-mother` en parallele
+- les tests unitaires Angular frontend (Karma + Chrome Headless)
+- le build Angular du frontend
+- `terraform init -backend=false`, `terraform fmt -check` et `terraform validate`
+- les builds Docker de `backend-child`, `backend-mother` et `frontend` en parallele
+
+Prerequis selon la variante:
+
+- [Jenkinsfile](Jenkinsfile): Java 21 + Gradle, Node.js 20 + npm, Terraform 1.6+, Docker
+- [Jenkinsfile.docker](Jenkinsfile.docker): Docker + Jenkins Pipeline plugin Docker (les outils sont embarques dans les images de stage)
+
+Guide de mise en place Jenkins (job, credentials, webhook): [JENKINS_SETUP.md](JENKINS_SETUP.md)
 
 ### CD
 

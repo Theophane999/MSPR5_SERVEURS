@@ -11,3 +11,9 @@ output "backend_children_urls" {
     for name, child in var.children : name => "http://localhost:${child.external_port}/api/info"
   }
 }
+
+output "child_databases" {
+  value = {
+    for name, _child in var.children : name => "futurekawa_${name}"
+  }
+}
