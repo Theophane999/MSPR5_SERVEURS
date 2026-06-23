@@ -13,7 +13,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-@TestPropertySource(properties = "app.country=Brazil")
+@TestPropertySource(properties = {"app.country=Brazil", "app.mqtt.enabled=false"})
 class InfoControllerTest {
 
     @Autowired

@@ -78,3 +78,11 @@ ALTER TABLE "capteur"
 ADD CONSTRAINT "capteur_fk4"
 FOREIGN KEY ("ID_entrepot")
 REFERENCES "entrepot"("ID_ENTREPOT");
+
+-- Seed: un entrepot par backend fille (Bresil=1, Equateur=2, Colombie=3)
+INSERT INTO "entrepot" ("ID_ENTREPOT", "nom", "longitude", "latitude", "taille") VALUES
+(1, 'Entrepot Bresil',    -47.9292, -15.7801, 1000.0),
+(2, 'Entrepot Equateur',  -78.5249,  -0.2295,  800.0),
+(3, 'Entrepot Colombie',  -74.0721,   4.7110,  900.0);
+
+SELECT setval(pg_get_serial_sequence('"entrepot"', 'ID_ENTREPOT'), 3);

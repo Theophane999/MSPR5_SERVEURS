@@ -45,6 +45,26 @@ resource "docker_container" "child_db" {
   }
 }
 
+resource "docker_container" "mosquitto" {
+  name    = "mosquitto-broker"
+  image   = "eclipse-mosquitto:2"
+  restart = "unless-stopped"
+
+  upload {
+    content = "listener 1883 0.0.0.0\nallow_anonymous true\n"
+    file    = "/mosquitto/config/mosquitto.conf"
+  }
+
+  networks_advanced {
+    name = docker_network.futurekawa.name
+  }
+
+  ports {
+    internal = 1883
+    external = 1883
+  }
+}
+
 resource "docker_image" "backend_child" {
   name = "futurekawa/backend-child:latest"
 
@@ -65,7 +85,10 @@ resource "docker_container" "backend_child" {
     "DB_PORT=5432",
     "DB_NAME=${local.children_db_names[each.key]}",
     "DB_USER=${var.child_db_user}",
-    "DB_PASSWORD=${var.child_db_password}"
+    "DB_PASSWORD=${var.child_db_password}",
+    "MQTT_BROKER=tcp://mosquitto-broker:1883",
+    "ENTREPOT_ID=${each.value.entrepot_id}",
+    "MQTT_INTERVAL_SECONDS=300"
   ]
   restart = "unless-stopped"
 
@@ -78,7 +101,7 @@ resource "docker_container" "backend_child" {
     external = each.value.external_port
   }
 
-  depends_on = [docker_container.child_db]
+  depends_on = [docker_container.child_db, docker_container.mosquitto]
 }
 
 resource "docker_image" "backend_mother" {

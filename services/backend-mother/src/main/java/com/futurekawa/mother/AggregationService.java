@@ -57,10 +57,25 @@ public class AggregationService {
 
             HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
             Map<String, Object> payload = objectMapper.readValue(response.body(), new TypeReference<>() {});
+            Map<String, Object> sensorData = fetchSensorData(childTarget);
 
-            return new ChildAggregate(childTarget.name(), childTarget.url(), response.statusCode() < 400, payload, null);
+            return new ChildAggregate(childTarget.name(), childTarget.url(), response.statusCode() < 400, payload, sensorData, null);
         } catch (Exception exception) {
-            return new ChildAggregate(childTarget.name(), childTarget.url(), false, null, exception.getMessage());
+            return new ChildAggregate(childTarget.name(), childTarget.url(), false, null, null, exception.getMessage());
+        }
+    }
+
+    private Map<String, Object> fetchSensorData(ChildTarget childTarget) {
+        try {
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create(childTarget.url() + "/api/capteurs/latest"))
+                .timeout(Duration.ofSeconds(2))
+                .GET()
+                .build();
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            return objectMapper.readValue(response.body(), new TypeReference<>() {});
+        } catch (Exception e) {
+            return Map.of("available", false);
         }
     }
 
@@ -105,6 +120,6 @@ public class AggregationService {
     public record AggregatedResponse(String role, String aggregatedAt, List<ChildAggregate> children) {
     }
 
-    public record ChildAggregate(String name, String url, boolean available, Map<String, Object> data, String error) {
+    public record ChildAggregate(String name, String url, boolean available, Map<String, Object> data, Map<String, Object> sensorData, String error) {
     }
 }

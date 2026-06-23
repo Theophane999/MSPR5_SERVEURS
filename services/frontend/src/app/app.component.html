@@ -85,12 +85,24 @@
           <strong>{{ availabilityPercent }}%</strong>
         </div>
         <div>
-          <span>Flux observe</span>
-          <strong>{{ totalCount || 0 }} endpoints</strong>
+          <span>Capteurs actifs</span>
+          <strong>{{ sensorActiveCount }}/{{ totalCount || 0 }}</strong>
         </div>
         <div>
           <span>Etat UX</span>
           <strong>{{ errorMessage ? 'incident' : (loading ? 'scan' : 'nominal') }}</strong>
+        </div>
+        <div>
+          <span>Temperature moy.</span>
+          <strong class="sensor-value">{{ avgTemperature !== null ? ((avgTemperature | number:'1.1-1') + ' \u00b0C') : 'N/A' }}</strong>
+        </div>
+        <div>
+          <span>Humidite moy.</span>
+          <strong class="sensor-value">{{ avgHumidite !== null ? ((avgHumidite | number:'1.1-1') + ' %') : 'N/A' }}</strong>
+        </div>
+        <div>
+          <span>Rafraichissement</span>
+          <strong>auto 5 min</strong>
         </div>
       </div>
     </article>
@@ -136,6 +148,18 @@
           <div>
             <dt>Signal</dt>
             <dd>{{ child.available ? 'remontee validee' : 'signal interrompu' }}</dd>
+          </div>
+          <div class="sensor-row" *ngIf="child.sensorData?.available">
+            <dt>Temperature</dt>
+            <dd>{{ child.sensorData?.temperature | number:'1.1-1' }} °C</dd>
+          </div>
+          <div class="sensor-row" *ngIf="child.sensorData?.available">
+            <dt>Humidite</dt>
+            <dd>{{ child.sensorData?.humidite | number:'1.1-1' }} %</dd>
+          </div>
+          <div class="sensor-row" *ngIf="child.sensorData?.available">
+            <dt>Mesure le</dt>
+            <dd>{{ child.sensorData?.date }}</dd>
           </div>
         </dl>
       </article>

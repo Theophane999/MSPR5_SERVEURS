@@ -1,5 +1,5 @@
-import { DatePipe, NgClass, NgFor, NgIf } from '@angular/common';
-import { Component, OnInit, inject } from '@angular/core';
+import { DatePipe, DecimalPipe, NgClass, NgFor, NgIf } from '@angular/common';
+import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { finalize } from 'rxjs';
 import { ChildStatus, DashboardResponse } from './models/dashboard.model';
 import { DashboardService } from './services/dashboard.service';
@@ -7,12 +7,13 @@ import { DashboardService } from './services/dashboard.service';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [NgFor, NgIf, NgClass, DatePipe],
+  imports: [NgFor, NgIf, NgClass, DatePipe, DecimalPipe],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
   private readonly dashboardService = inject(DashboardService);
+  private refreshTimer?: ReturnType<typeof setInterval>;
 
   protected loading = true;
   protected apiUrl = `${this.dashboardService.motherUrl()}/api/children`;
@@ -22,6 +23,11 @@ export class AppComponent implements OnInit {
 
   ngOnInit(): void {
     this.refresh();
+    this.refreshTimer = setInterval(() => this.refresh(), 300_000);
+  }
+
+  ngOnDestroy(): void {
+    clearInterval(this.refreshTimer);
   }
 
   protected get onlineCount(): number {
@@ -118,6 +124,24 @@ export class AppComponent implements OnInit {
 
   protected trackByName(_index: number, child: ChildStatus): string {
     return child.name;
+  }
+
+  protected get sensorActiveCount(): number {
+    return this.children.filter(c => c.sensorData?.available).length;
+  }
+
+  protected get avgTemperature(): number | null {
+    const values = this.children
+      .filter(c => c.sensorData?.available && c.sensorData.temperature != null)
+      .map(c => c.sensorData!.temperature);
+    return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
+  }
+
+  protected get avgHumidite(): number | null {
+    const values = this.children
+      .filter(c => c.sensorData?.available && c.sensorData.humidite != null)
+      .map(c => c.sensorData!.humidite);
+    return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
   }
 
   protected refresh(): void {

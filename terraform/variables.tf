@@ -28,20 +28,24 @@ variable "children" {
   type = map(object({
     country       = string
     external_port = number
+    entrepot_id   = number
   }))
 
   default = {
     brazil = {
       country       = "Brazil"
       external_port = 3101
+      entrepot_id   = 1
     }
     ecuador = {
       country       = "Ecuador"
       external_port = 3102
+      entrepot_id   = 2
     }
     colombia = {
       country       = "Colombia"
       external_port = 3103
+      entrepot_id   = 3
     }
   }
 }

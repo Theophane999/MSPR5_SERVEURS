@@ -487,3 +487,30 @@ dd {
     width: min(100%, 280px);
   }
 }
+
+/* Sensor data rows inside region cards */
+.sensor-row {
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.sensor-row + .sensor-row {
+  border-top: none;
+  padding-top: 0;
+}
+
+.sensor-row dt {
+  color: var(--accent);
+}
+
+.sensor-row dd {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+/* Sensor values in the telemetry card */
+.sensor-value {
+  font-family: 'IBM Plex Mono', monospace;
+  color: var(--accent);
+}

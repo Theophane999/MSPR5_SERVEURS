@@ -1,3 +1,11 @@
+export interface CapteurData {
+  idEntrepot: number;
+  temperature: number;
+  humidite: number;
+  date: string;
+  available: boolean;
+}
+
 export interface ChildStatus {
   name: string;
   url: string;
@@ -8,6 +16,7 @@ export interface ChildStatus {
     message: string;
     timestamp: string;
   };
+  sensorData?: CapteurData;
   error?: string;
 }
 
