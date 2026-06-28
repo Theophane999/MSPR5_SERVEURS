@@ -114,7 +114,14 @@
         <p class="panel-label">Noeuds enfants</p>
         <h2>Cartographie pays</h2>
       </div>
-      <p class="panel-note inline">{{ loading ? 'Mise a jour de la grille...' : 'Visualisation produit des points de service regionaux.' }}</p>
+      <div class="country-selector" *ngIf="!loading && !errorMessage && children.length">
+        <label for="country">Pays / exploitation</label>
+        <select id="country" [value]="selectedCountry?.name" (change)="selectCountry($any($event.target).value)">
+          <option *ngFor="let child of children; trackBy: trackByName" [value]="child.name">
+            {{ displayCountry(child) }}
+          </option>
+        </select>
+      </div>
     </div>
 
     <p class="feedback" *ngIf="loading">Chargement des donnees...</p>
@@ -164,5 +171,245 @@
         </dl>
       </article>
     </div>
+  </section>
+
+  <section class="lots-grid" *ngIf="!loading && !errorMessage && selectedCountry">
+    <article class="panel-surface lots-panel">
+      <div class="panel-head">
+        <div>
+          <p class="panel-label">Stocks consolides</p>
+          <h2>Lots de {{ selectedCountryDisplayName }}</h2>
+        </div>
+      </div>
+
+      <div class="stock-kpis" *ngIf="selectedCountryStockState as stockState">
+        <div>
+          <span>Total lots</span>
+          <strong>{{ stockState.totalLots }}</strong>
+        </div>
+        <div>
+          <span>Nominal</span>
+          <strong>{{ stockState.healthyLots }}</strong>
+        </div>
+        <div>
+          <span>Vigilance</span>
+          <strong>{{ stockState.warningLots }}</strong>
+        </div>
+        <div>
+          <span>Critique</span>
+          <strong>{{ stockState.criticalLots }}</strong>
+        </div>
+      </div>
+
+      <div class="stock-visual" *ngIf="selectedCountryStockState as stockState">
+        <div class="stock-bar" role="img" aria-label="Repartition du stock par niveau de risque">
+          <span class="segment ok" [style.width.%]="stockBarOkPercent"></span>
+          <span class="segment warning" [style.width.%]="stockBarWarningPercent"></span>
+          <span class="segment critical" [style.width.%]="stockBarCriticalPercent"></span>
+        </div>
+        <div class="stock-legend">
+          <span><i class="legend-dot ok"></i> Nominal {{ stockState.healthyLots }}</span>
+          <span><i class="legend-dot warning"></i> Vigilance {{ stockState.warningLots }}</span>
+          <span><i class="legend-dot critical"></i> Critique {{ stockState.criticalLots }}</span>
+        </div>
+      </div>
+
+      <div class="lots-list" *ngIf="selectedCountryLots.length; else noLot">
+        <button
+          type="button"
+          class="lot-row"
+          *ngFor="let lot of selectedCountryLots"
+          [class.active]="selectedLot?.id === lot.id"
+          [ngClass]="'status-' + lot.status"
+          (click)="selectLot(lot.id)">
+          <div>
+            <strong>Lot {{ lot.id }}</strong>
+            <small>{{ lot.storageDate }}</small>
+          </div>
+          <span>{{ lotStatusLabel(lot.status) }}</span>
+        </button>
+      </div>
+
+      <ng-template #noLot>
+        <p class="feedback">Aucun lot detecte sur ce pays pour le moment.</p>
+      </ng-template>
+    </article>
+
+    <article class="panel-surface detail-panel" *ngIf="selectedLot as lot">
+      <div class="panel-head">
+        <div>
+          <p class="panel-label">Detail lot</p>
+          <h2>Lot {{ lot.id }}</h2>
+        </div>
+        <span class="badge">{{ lotStatusLabel(lot.status) }}</span>
+      </div>
+
+      <div class="lot-meta">
+        <div>
+          <span>Date stockage</span>
+          <strong>{{ lot.storageDate }}</strong>
+        </div>
+        <div>
+          <span>Variete</span>
+          <strong>{{ lot.variete || 'N/A' }}</strong>
+        </div>
+        <div>
+          <span>Process</span>
+          <strong>{{ lot.process || 'N/A' }}</strong>
+        </div>
+        <div>
+          <span>Score SCA</span>
+          <strong>{{ lot.scoreSca !== null && lot.scoreSca !== undefined ? (lot.scoreSca | number:'1.1-1') : 'N/A' }}</strong>
+        </div>
+        <div>
+          <span>Poids lot</span>
+          <strong>{{ lot.poidsKg !== null && lot.poidsKg !== undefined ? ((lot.poidsKg | number:'1.0-2') + ' kg') : 'N/A' }}</strong>
+        </div>
+        <div>
+          <span>Qualite</span>
+          <strong>{{ lot.qualite || 'N/A' }}</strong>
+        </div>
+        <div>
+          <span>Quantite</span>
+          <strong>{{ lot.quantite !== null && lot.quantite !== undefined ? lot.quantite : 'N/A' }}</strong>
+        </div>
+        <div>
+          <span>DLC (jours)</span>
+          <strong>{{ lot.datePeremption !== null && lot.datePeremption !== undefined ? lot.datePeremption : 'N/A' }}</strong>
+        </div>
+        <div>
+          <span>Temperature</span>
+          <strong>{{ lot.temperature !== null ? ((lot.temperature | number:'1.1-1') + ' °C') : 'N/A' }}</strong>
+        </div>
+        <div>
+          <span>Humidite</span>
+          <strong>{{ lot.humidite !== null ? ((lot.humidite | number:'1.1-1') + ' %') : 'N/A' }}</strong>
+        </div>
+      </div>
+
+      <div class="chart-panel" *ngIf="selectedHistoryPoints.length > 1; else noHistory">
+        <h3>Courbes temperature / humidite</h3>
+        <svg [attr.viewBox]="'0 0 ' + chartWidth + ' ' + chartHeight" preserveAspectRatio="none">
+          <path class="curve temp" [attr.d]="toChartPath('temperature')"></path>
+          <path class="curve hum" [attr.d]="toChartPath('humidite')"></path>
+        </svg>
+        <div class="chart-legend">
+          <span><i class="temp-dot"></i> Temperature</span>
+          <span><i class="hum-dot"></i> Humidite</span>
+        </div>
+      </div>
+
+      <ng-template #noHistory>
+        <p class="feedback">Historique insuffisant pour tracer les courbes.</p>
+      </ng-template>
+
+      <div class="alerts" *ngIf="selectedCountryAlerts.length; else noAlert">
+        <h3>Alertes</h3>
+        <article *ngFor="let alert of selectedCountryAlerts" [ngClass]="'alert-' + alert.level">
+          <strong>{{ alert.level === 'critical' ? 'Critique' : 'Vigilance' }}</strong>
+          <p>{{ alert.message }}</p>
+        </article>
+      </div>
+
+      <div class="dataset-details" *ngIf="selectedDataDetails as details">
+        <h3>Details des donnees recues</h3>
+        <div class="details-kpis">
+          <div>
+            <span>Points capteurs</span>
+            <strong>{{ details.historyCount }}</strong>
+          </div>
+          <div>
+            <span>Lots consolides</span>
+            <strong>{{ details.lotsCount }}</strong>
+          </div>
+          <div>
+            <span>Alertes actives</span>
+            <strong>{{ details.alertsCount }}</strong>
+          </div>
+          <div>
+            <span>Expeditions</span>
+            <strong>{{ details.expeditionsCount }}</strong>
+          </div>
+          <div>
+            <span>Dernier point</span>
+            <strong>{{ details.lastPoint?.date || 'N/A' }}</strong>
+          </div>
+        </div>
+
+        <div class="measure-table" *ngIf="selectedHistoryPreview.length; else noMeasurePreview">
+          <header>
+            <span>Date</span>
+            <span>Temp.</span>
+            <span>Hum.</span>
+          </header>
+          <div *ngFor="let point of selectedHistoryPreview">
+            <span>{{ point.date }}</span>
+            <span>{{ point.temperature | number:'1.1-1' }} °C</span>
+            <span>{{ point.humidite | number:'1.1-1' }} %</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="expeditions" *ngIf="selectedCountryExpeditions.length; else noExpeditions">
+        <h3>Expeditions</h3>
+        <article *ngFor="let expedition of selectedCountryExpeditions" class="expedition-card">
+          <header>
+            <div>
+              <strong>Expedition #{{ expedition.id }}</strong>
+              <small>{{ expedition.departAt | date:'short' }} -> {{ expedition.arriveeEstimeeAt | date:'short' }}</small>
+            </div>
+            <span class="status-chip">{{ expedition.statut }}</span>
+          </header>
+
+          <div class="expedition-grid">
+            <div>
+              <span>Client</span>
+              <strong>{{ expedition.destinationClient || 'N/A' }}</strong>
+            </div>
+            <div>
+              <span>Destination</span>
+              <strong>{{ expedition.destinationVille }}, {{ expedition.destinationPays }}</strong>
+            </div>
+            <div>
+              <span>Poids total</span>
+              <strong>{{ expedition.poidsTotalKg !== null ? ((expedition.poidsTotalKg | number:'1.0-2') + ' kg') : 'N/A' }}</strong>
+            </div>
+            <div>
+              <span>Tracking</span>
+              <strong>{{ expedition.trackingTransporteur || 'N/A' }}</strong>
+            </div>
+            <div>
+              <span>Quai depart</span>
+              <strong>{{ expedition.quaiDepart || 'N/A' }}</strong>
+            </div>
+          </div>
+
+          <div class="measure-table" *ngIf="expedition.lots.length">
+            <header>
+              <span>Lot</span>
+              <span>Quantite</span>
+              <span>Poids</span>
+            </header>
+            <div *ngFor="let l of expedition.lots">
+              <span>{{ l.lotReference }}</span>
+              <span>{{ l.quantiteExpediee }}</span>
+              <span>{{ l.poidsExpedieKg !== null ? ((l.poidsExpedieKg | number:'1.0-2') + ' kg') : 'N/A' }}</span>
+            </div>
+          </div>
+        </article>
+      </div>
+
+      <ng-template #noAlert>
+        <p class="feedback">Aucune alerte active.</p>
+      </ng-template>
+
+      <ng-template #noExpeditions>
+        <p class="feedback">Aucune expedition disponible.</p>
+      </ng-template>
+
+      <ng-template #noMeasurePreview>
+        <p class="feedback">Aucun detail de mesure disponible.</p>
+      </ng-template>
+    </article>
   </section>
 </main>

@@ -32,7 +32,12 @@ class MotherControllerTest {
                 "http://backend-brazil:3000",
                 true,
                 Map.of("country", "Brazil", "message", "ok"),
-                null,
+                Map.of("available", true),
+                List.of(),
+                List.of(),
+                new AggregationService.StockState(0, 0, 0, 0, null),
+                List.of(),
+                List.of(),
                 null
             ))
         );

@@ -22,6 +22,25 @@ flowchart LR
     M --> F[Frontend FutureKawa]
 ```
 
+## Fonctionnalites siege (backend central + frontend web)
+
+La solution siege est composee de:
+
+- un backend central qui interroge chaque backend pays et consolide:
+    - l'etat des stocks (lots derives, statut stock)
+    - les details metier lot (variete, process, score SCA, poids, qualite, quantite, DLC)
+    - les expeditions (statut, client, poids total, tracking, quai de depart, composition des lots)
+    - les mesures historiques temperature/humidite
+    - les alertes (vigilance/critique)
+- un frontend web de supervision qui permet:
+    - la selection d'un pays/exploitation
+    - l'affichage des lots tries par date de stockage
+    - la consultation d'un lot (detail + mesures)
+    - la visualisation de courbes temperature/humidite
+    - la consultation des alertes et statuts
+
+Cette base est utilisable en demonstration et extensible vers des donnees metier lot plus riches.
+
 ## Stack
 
 - Java 21 + Spring Boot 3 (backend fille et backend mere)
@@ -122,6 +141,21 @@ Acces :
 - Backend fille Bresil Spring Boot : http://localhost:3101/api/info
 - Backend fille Equateur Spring Boot : http://localhost:3102/api/info
 - Backend fille Colombie Spring Boot : http://localhost:3103/api/info
+
+Endpoints utiles pour la demo siege:
+
+- Backend mere consolide : http://localhost:3200/api/children
+- Health backend mere : http://localhost:3200/health
+- Health backend fille (exemple Bresil) : http://localhost:3101/health
+- Historique capteurs fille (exemple Bresil) : http://localhost:3101/api/capteurs
+- Derniere mesure capteur fille (exemple Bresil) : http://localhost:3101/api/capteurs/latest
+- Lots fille (exemple Bresil) : http://localhost:3101/api/lots
+- Expeditions fille (exemple Bresil) : http://localhost:3101/api/expeditions
+
+Frontend demo:
+
+- Mode Docker/Nginx: http://localhost:8080
+- Mode dev Angular (hot reload): http://localhost:4300 via `./dev-start.ps1`
 
 Detruire l'infra :
 
