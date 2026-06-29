@@ -4,10 +4,12 @@ pipeline {
   options {
     timestamps()
     disableConcurrentBuilds()
+    skipDefaultCheckout(true)
   }
 
   triggers {
     githubPush()
+    pollSCM('H/3 * * * *')
   }
 
   parameters {
@@ -19,9 +21,7 @@ pipeline {
   }
 
   environment {
-    IMAGE_TAG        = "${env.GIT_COMMIT?.take(8) ?: 'ci'}"
-    REGISTRY         = credentials('docker-registry-url')
-    REGISTRY_CREDS   = 'docker-registry-credentials'
+    IMAGE_TAG        = 'ci'
   }
 
   stages {
@@ -29,98 +29,73 @@ pipeline {
       agent any
       steps {
         checkout scm
+        sh 'git sparse-checkout disable || true'
+        stash name: 'workspace-src', includes: '**/*', useDefaultExcludes: false
       }
     }
 
     stage('Backend Tests') {
       parallel {
         stage('backend-child') {
-          agent {
-            docker {
-              image 'gradle:8.10.2-jdk21'
-              args '-u root:root'
-              reuseNode true
-            }
-          }
+          agent any
           steps {
-            dir('services/backend-child') {
-              sh 'gradle --no-daemon test'
-            }
+            unstash 'workspace-src'
+            sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/services/backend-child" gradle:8.10.2-jdk21 gradle --no-daemon test'
           }
         }
 
         stage('backend-mother') {
-          agent {
-            docker {
-              image 'gradle:8.10.2-jdk21'
-              args '-u root:root'
-              reuseNode true
-            }
-          }
+          agent any
           steps {
-            dir('services/backend-mother') {
-              sh 'gradle --no-daemon test'
-            }
+            unstash 'workspace-src'
+            sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/services/backend-mother" gradle:8.10.2-jdk21 gradle --no-daemon test'
           }
         }
       }
     }
 
     stage('Frontend Unit Tests') {
-      agent {
-        docker {
-          image 'mcr.microsoft.com/playwright:v1.54.0-jammy'
-          args '-u root:root'
-          reuseNode true
-        }
-      }
+      agent any
       steps {
-        dir('services/frontend') {
-          sh 'npm ci'
-          sh 'CHROME_BIN=$(find /ms-playwright -name chrome -type f | head -n 1); if [ -z "$CHROME_BIN" ]; then echo "Chrome binary not found"; exit 1; fi; export CHROME_BIN; npx ng test --watch=false --browsers=ChromeHeadlessNoSandbox --progress=false'
-        }
+        unstash 'workspace-src'
+        sh '''
+          docker run --rm --volumes-from jenkins -w "$WORKSPACE/services/frontend" mcr.microsoft.com/playwright:v1.54.0-jammy /bin/bash -lc 'npm ci && CHROME_BIN=$(which google-chrome-stable || which google-chrome || which chromium || which chromium-browser || true); if [ -z "$CHROME_BIN" ]; then CHROME_BIN=$(find /ms-playwright -type f 2>/dev/null | grep -E "/(chrome|chromium)$" | head -n 1); fi; if [ -z "$CHROME_BIN" ]; then echo Chrome/Chromium binary not found; exit 1; fi; export CHROME_BIN; npx ng test --watch=false --browsers=ChromeHeadlessNoSandbox --progress=false'
+        '''
       }
     }
 
     stage('Frontend Build') {
-      agent {
-        docker {
-          image 'node:20'
-          args '-u root:root'
-          reuseNode true
-        }
-      }
+      agent any
       steps {
-        dir('services/frontend') {
-          sh 'npm ci'
-          sh 'npm run build'
-        }
+        unstash 'workspace-src'
+        sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/services/frontend" node:20 /bin/bash -lc "npm ci && npm run build"'
       }
     }
 
     stage('Terraform Validate') {
-      agent {
-        docker {
-          image 'hashicorp/terraform:1.8.5'
-          args '-u root:root'
-          reuseNode true
-        }
-      }
+      agent any
       steps {
-        dir('terraform') {
-          sh 'terraform init -backend=false'
-          sh 'terraform fmt -check'
-          sh 'terraform validate'
-        }
+        unstash 'workspace-src'
+        sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/terraform" hashicorp/terraform:1.8.5 init -backend=false'
+        sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/terraform" hashicorp/terraform:1.8.5 fmt -check'
+        sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/terraform" hashicorp/terraform:1.8.5 validate'
       }
     }
 
     stage('Docker Build & Tag') {
       agent any
+      when {
+        anyOf {
+          branch 'pre-prod'
+          branch 'main'
+        }
+      }
       steps {
+        unstash 'workspace-src'
         script {
           def isBranchPreprod = env.BRANCH_NAME == 'pre-prod'
           def isBranchProd    = env.BRANCH_NAME == 'main'
+          env.IMAGE_TAG = env.GIT_COMMIT ? env.GIT_COMMIT.take(8) : 'ci'
           def tag = isBranchProd ? 'prod' : (isBranchPreprod ? 'preprod' : 'ci')
 
           sh """
@@ -130,8 +105,12 @@ pipeline {
           """
 
           if (isBranchPreprod || isBranchProd) {
-            withDockerRegistry([credentialsId: env.REGISTRY_CREDS, url: 'https://' + env.REGISTRY]) {
+            withCredentials([
+              string(credentialsId: 'docker-registry-url', variable: 'REGISTRY'),
+              usernamePassword(credentialsId: 'docker-registry-credentials', usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASS')
+            ]) {
               sh """
+                echo "\$REGISTRY_PASS" | docker login "\$REGISTRY" -u "\$REGISTRY_USER" --password-stdin
                 docker push futurekawa/backend-child:${tag}
                 docker push futurekawa/backend-mother:${tag}
                 docker push futurekawa/frontend:${tag}
@@ -146,6 +125,7 @@ pipeline {
                   docker push futurekawa/frontend:${env.IMAGE_TAG}
                 """
               }
+              sh 'docker logout "$REGISTRY" || true'
             }
           }
         }
@@ -158,9 +138,10 @@ pipeline {
         branch 'pre-prod'
       }
       steps {
+        unstash 'workspace-src'
         sh """
           docker compose -f docker-compose.preprod.yml up -d --build
-          docker run --rm --network host -v "\$PWD:/workspace" -w /workspace mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \\
+          docker run --rm --network host --volumes-from jenkins -w "\$WORKSPACE" mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \\
             pwsh -NoLogo -NoProfile -File ./scripts/smoke-preprod.ps1
         """
       }
@@ -209,8 +190,9 @@ pipeline {
         branch 'main'
       }
       steps {
+        unstash 'workspace-src'
         sh """
-          docker run --rm --network host -v "\$PWD:/workspace" -w /workspace mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \\
+          docker run --rm --network host --volumes-from jenkins -w "\$WORKSPACE" mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \\
             pwsh -NoLogo -NoProfile -File ./scripts/smoke-preprod.ps1 \\
             -FrontendUrl \"${params.PROD_FRONTEND_URL}\" \\
             -MotherApiUrl \"${params.PROD_MOTHER_API_URL}\" \\
