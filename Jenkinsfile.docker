@@ -4,6 +4,7 @@ pipeline {
   options {
     timestamps()
     disableConcurrentBuilds()
+    skipDefaultCheckout(true)
   }
 
   triggers {
@@ -27,6 +28,8 @@ pipeline {
       agent any
       steps {
         checkout scm
+        sh 'git sparse-checkout disable || true'
+        stash name: 'workspace-src', includes: '**/*', useDefaultExcludes: false
       }
     }
 
@@ -35,6 +38,7 @@ pipeline {
         stage('backend-child') {
           agent any
           steps {
+            unstash 'workspace-src'
             sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/services/backend-child gradle:8.10.2-jdk21 gradle --no-daemon test'
           }
         }
@@ -42,6 +46,7 @@ pipeline {
         stage('backend-mother') {
           agent any
           steps {
+            unstash 'workspace-src'
             sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/services/backend-mother gradle:8.10.2-jdk21 gradle --no-daemon test'
           }
         }
@@ -51,6 +56,7 @@ pipeline {
     stage('Frontend Unit Tests') {
       agent any
       steps {
+        unstash 'workspace-src'
         sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/services/frontend mcr.microsoft.com/playwright:v1.54.0-jammy /bin/bash -lc "npm ci && CHROME_BIN=$(find /ms-playwright -name chrome -type f | head -n 1); if [ -z \"$CHROME_BIN\" ]; then echo Chrome binary not found; exit 1; fi; export CHROME_BIN; npx ng test --watch=false --browsers=ChromeHeadlessNoSandbox --progress=false"'
       }
     }
@@ -58,6 +64,7 @@ pipeline {
     stage('Frontend Build') {
       agent any
       steps {
+        unstash 'workspace-src'
         sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/services/frontend node:20 /bin/bash -lc "npm ci && npm run build"'
       }
     }
@@ -65,6 +72,7 @@ pipeline {
     stage('Terraform Validate') {
       agent any
       steps {
+        unstash 'workspace-src'
         sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/terraform hashicorp/terraform:1.8.5 init -backend=false'
         sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/terraform hashicorp/terraform:1.8.5 fmt -check'
         sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/terraform hashicorp/terraform:1.8.5 validate'
@@ -74,6 +82,7 @@ pipeline {
     stage('Docker Build & Tag') {
       agent any
       steps {
+        unstash 'workspace-src'
         script {
           def isBranchPreprod = env.BRANCH_NAME == 'pre-prod'
           def isBranchProd    = env.BRANCH_NAME == 'main'
@@ -120,6 +129,7 @@ pipeline {
         branch 'pre-prod'
       }
       steps {
+        unstash 'workspace-src'
         sh """
           docker compose -f docker-compose.preprod.yml up -d --build
           docker run --rm --network host -v "\$PWD:/workspace" -w /workspace mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \\
@@ -171,6 +181,7 @@ pipeline {
         branch 'main'
       }
       steps {
+        unstash 'workspace-src'
         sh """
           docker run --rm --network host -v "\$PWD:/workspace" -w /workspace mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \\
             pwsh -NoLogo -NoProfile -File ./scripts/smoke-preprod.ps1 \\
