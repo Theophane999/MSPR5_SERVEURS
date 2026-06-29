@@ -39,7 +39,7 @@ pipeline {
           agent any
           steps {
             unstash 'workspace-src'
-            sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/services/backend-child gradle:8.10.2-jdk21 gradle --no-daemon test'
+            sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/services/backend-child" gradle:8.10.2-jdk21 gradle --no-daemon test'
           }
         }
 
@@ -47,7 +47,7 @@ pipeline {
           agent any
           steps {
             unstash 'workspace-src'
-            sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/services/backend-mother gradle:8.10.2-jdk21 gradle --no-daemon test'
+            sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/services/backend-mother" gradle:8.10.2-jdk21 gradle --no-daemon test'
           }
         }
       }
@@ -57,7 +57,7 @@ pipeline {
       agent any
       steps {
         unstash 'workspace-src'
-        sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/services/frontend mcr.microsoft.com/playwright:v1.54.0-jammy /bin/bash -lc "npm ci && CHROME_BIN=$(find /ms-playwright -name chrome -type f | head -n 1); if [ -z \"$CHROME_BIN\" ]; then echo Chrome binary not found; exit 1; fi; export CHROME_BIN; npx ng test --watch=false --browsers=ChromeHeadlessNoSandbox --progress=false"'
+        sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/services/frontend" mcr.microsoft.com/playwright:v1.54.0-jammy /bin/bash -lc "npm ci && CHROME_BIN=$(find /ms-playwright -name chrome -type f | head -n 1); if [ -z \"$CHROME_BIN\" ]; then echo Chrome binary not found; exit 1; fi; export CHROME_BIN; npx ng test --watch=false --browsers=ChromeHeadlessNoSandbox --progress=false"'
       }
     }
 
@@ -65,7 +65,7 @@ pipeline {
       agent any
       steps {
         unstash 'workspace-src'
-        sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/services/frontend node:20 /bin/bash -lc "npm ci && npm run build"'
+        sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/services/frontend" node:20 /bin/bash -lc "npm ci && npm run build"'
       }
     }
 
@@ -73,9 +73,9 @@ pipeline {
       agent any
       steps {
         unstash 'workspace-src'
-        sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/terraform hashicorp/terraform:1.8.5 init -backend=false'
-        sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/terraform hashicorp/terraform:1.8.5 fmt -check'
-        sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/terraform hashicorp/terraform:1.8.5 validate'
+        sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/terraform" hashicorp/terraform:1.8.5 init -backend=false'
+        sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/terraform" hashicorp/terraform:1.8.5 fmt -check'
+        sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/terraform" hashicorp/terraform:1.8.5 validate'
       }
     }
 
@@ -132,7 +132,7 @@ pipeline {
         unstash 'workspace-src'
         sh """
           docker compose -f docker-compose.preprod.yml up -d --build
-          docker run --rm --network host -v "\$PWD:/workspace" -w /workspace mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \\
+          docker run --rm --network host --volumes-from jenkins -w "\$WORKSPACE" mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \\
             pwsh -NoLogo -NoProfile -File ./scripts/smoke-preprod.ps1
         """
       }
@@ -183,7 +183,7 @@ pipeline {
       steps {
         unstash 'workspace-src'
         sh """
-          docker run --rm --network host -v "\$PWD:/workspace" -w /workspace mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \\
+          docker run --rm --network host --volumes-from jenkins -w "\$WORKSPACE" mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \\
             pwsh -NoLogo -NoProfile -File ./scripts/smoke-preprod.ps1 \\
             -FrontendUrl \"${params.PROD_FRONTEND_URL}\" \\
             -MotherApiUrl \"${params.PROD_MOTHER_API_URL}\" \\
