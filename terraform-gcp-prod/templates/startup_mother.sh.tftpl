@@ -1,0 +1,53 @@
+#!/bin/bash
+set -euxo pipefail
+
+apt-get update
+apt-get install -y ca-certificates curl gnupg lsb-release
+
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+  $(. /etc/os-release && echo $VERSION_CODENAME) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+apt-get update
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+systemctl enable docker
+systemctl start docker
+
+mkdir -p /opt/futurekawa/mother
+
+if [ -n "${backend_mother_pub_url}" ]; then
+  public_url="${backend_mother_pub_url}"
+else
+  public_ip=$(curl -fsH 'Metadata-Flavor: Google' http://metadata.google.internal/computeMetadata/v1/instance/network-interfaces/0/access-configs/0/external-ip)
+  public_url="http://$${public_ip}:3200"
+fi
+
+cat >/opt/futurekawa/mother/docker-compose.yml <<EOF
+services:
+  backend-mother:
+    image: futurekawa/backend-mother:prod
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      CHILDREN_SERVICES: ${children_services}
+    ports:
+      - "3200:3000"
+
+  frontend:
+    image: futurekawa/frontend:prod
+    restart: unless-stopped
+    environment:
+      BACKEND_MOTHER_PUBLIC_URL: $public_url
+    depends_on:
+      - backend-mother
+    ports:
+      - "80:80"
+EOF
+
+cd /opt/futurekawa/mother
+docker compose up -d
