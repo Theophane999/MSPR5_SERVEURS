@@ -20,8 +20,6 @@ pipeline {
 
   environment {
     IMAGE_TAG        = "${env.GIT_COMMIT?.take(8) ?: 'ci'}"
-    REGISTRY         = credentials('docker-registry-url')
-    REGISTRY_CREDS   = 'docker-registry-credentials'
   }
 
   stages {
@@ -88,8 +86,12 @@ pipeline {
           """
 
           if (isBranchPreprod || isBranchProd) {
-            withDockerRegistry([credentialsId: env.REGISTRY_CREDS, url: 'https://' + env.REGISTRY]) {
+            withCredentials([
+              string(credentialsId: 'docker-registry-url', variable: 'REGISTRY'),
+              usernamePassword(credentialsId: 'docker-registry-credentials', usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASS')
+            ]) {
               sh """
+                echo "\$REGISTRY_PASS" | docker login "\$REGISTRY" -u "\$REGISTRY_USER" --password-stdin
                 docker push futurekawa/backend-child:${tag}
                 docker push futurekawa/backend-mother:${tag}
                 docker push futurekawa/frontend:${tag}
@@ -104,6 +106,7 @@ pipeline {
                   docker push futurekawa/frontend:${env.IMAGE_TAG}
                 """
               }
+              sh 'docker logout "$REGISTRY" || true'
             }
           }
         }
