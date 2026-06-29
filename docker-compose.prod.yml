@@ -1,0 +1,104 @@
+version: '3.9'
+
+# -----------------------------------------------------------------------
+# Environnement PRODUCTION — branche main
+# Variables requises sur le serveur :
+#   DEPLOY_TAG        = prod (ou le sha court du commit)
+#   POSTGRES_PASSWORD = <secret>
+#   MQTT_HOST         = <broker>
+#   APP_CHILDREN      = brazil=http://...,ecuador=http://...,colombia=http://...
+# -----------------------------------------------------------------------
+
+services:
+
+  # ── Base de données ────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: futurekawa
+      POSTGRES_USER: futurekawa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - db-prod-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U futurekawa"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - futurekawa-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "5"
+
+  # ── Backend Child (à déployer sur chaque serveur pays séparément) ──
+  backend-child:
+    image: futurekawa/backend-child:${DEPLOY_TAG:-prod}
+    restart: always
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/futurekawa
+      SPRING_DATASOURCE_USERNAME: futurekawa
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      MQTT_HOST: ${MQTT_HOST}
+      APP_COUNTRY: ${APP_COUNTRY:-production}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - futurekawa-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "10"
+
+  # ── Backend Mother ─────────────────────────────────────────────────
+  backend-mother:
+    image: futurekawa/backend-mother:${DEPLOY_TAG:-prod}
+    restart: always
+    environment:
+      APP_CHILDREN_SERVICES: ${APP_CHILDREN:-brazil=http://backend-child:8080}
+      APP_ALERT_THRESHOLD_TEMP_MIN: ${ALERT_TEMP_MIN:-15}
+      APP_ALERT_THRESHOLD_TEMP_MAX: ${ALERT_TEMP_MAX:-30}
+      APP_ALERT_THRESHOLD_HUMIDITE_MIN: ${ALERT_HUM_MIN:-45}
+      APP_ALERT_THRESHOLD_HUMIDITE_MAX: ${ALERT_HUM_MAX:-75}
+    depends_on:
+      - backend-child
+    ports:
+      - "3200:8080"
+    networks:
+      - futurekawa-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "10"
+
+  # ── Frontend ───────────────────────────────────────────────────────
+  frontend:
+    image: futurekawa/frontend:${DEPLOY_TAG:-prod}
+    restart: always
+    environment:
+      BACKEND_MOTHER_URL: ${BACKEND_MOTHER_PUBLIC_URL:-http://backend-mother:8080}
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - backend-mother
+    networks:
+      - futurekawa-net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "10"
+
+volumes:
+  db-prod-data:
+
+networks:
+  futurekawa-net:
+    driver: bridge
