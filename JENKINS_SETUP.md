@@ -98,3 +98,24 @@ Le stage `post` publie:
 
 - rapports JUnit: `**/build/test-results/test/*.xml`
 - artefacts frontend: `services/frontend/dist/**`
+
+## 9) Comportement CI/CD recommande (prod + pre-prod)
+
+Avec [Jenkinsfile.docker](Jenkinsfile.docker):
+
+- branches `feature/*`: CI qualite uniquement (tests/build/validate)
+- branche `pre-prod`: CI qualite + smoke local via `scripts/smoke-preprod.ps1` (sans deploiement distant)
+- branche `main`: CI qualite + approbation manuelle + deploy prod + smoke post-deploy
+
+## 10) Parametres URLs smoke prod
+
+Le pipeline expose des parametres modifiables sans edition du Jenkinsfile:
+
+- `PROD_FRONTEND_URL`
+- `PROD_MOTHER_API_URL`
+- `PROD_CHILD_HEALTH_BRAZIL`
+- `PROD_CHILD_HEALTH_COLOMBIA`
+- `PROD_CHILD_HEALTH_ECUADOR`
+
+Par defaut ils pointent vers le domaine `future-kawa.online`.
+Si la propagation DNS n'est pas terminee, remplace temporairement par les IP publiques GCP au lancement du build.

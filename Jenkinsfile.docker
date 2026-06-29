@@ -10,6 +10,14 @@ pipeline {
     githubPush()
   }
 
+  parameters {
+    string(name: 'PROD_FRONTEND_URL', defaultValue: 'http://app.future-kawa.online', description: 'Frontend URL used by post-deploy smoke tests')
+    string(name: 'PROD_MOTHER_API_URL', defaultValue: 'http://api.future-kawa.online:3200/api/children', description: 'Mother API URL used by post-deploy smoke tests')
+    string(name: 'PROD_CHILD_HEALTH_BRAZIL', defaultValue: 'http://brazil.future-kawa.online:3000/health', description: 'Brazil child health URL used by post-deploy smoke tests')
+    string(name: 'PROD_CHILD_HEALTH_COLOMBIA', defaultValue: 'http://colombia.future-kawa.online:3000/health', description: 'Colombia child health URL used by post-deploy smoke tests')
+    string(name: 'PROD_CHILD_HEALTH_ECUADOR', defaultValue: 'http://ecuador.future-kawa.online:3000/health', description: 'Ecuador child health URL used by post-deploy smoke tests')
+  }
+
   environment {
     IMAGE_TAG        = "${env.GIT_COMMIT?.take(8) ?: 'ci'}"
     REGISTRY         = credentials('docker-registry-url')
@@ -144,22 +152,22 @@ pipeline {
       }
     }
 
-    stage('Deploy Pre-prod') {
+    stage('Smoke Pre-prod (Local)') {
       agent any
       when {
         branch 'pre-prod'
       }
-      environment {
-        SSH_PREPROD = credentials('ssh-preprod-server')
-        PREPROD_HOST = credentials('preprod-host')
-      }
       steps {
         sh """
-          ssh -o StrictHostKeyChecking=no -i \$SSH_PREPROD \$PREPROD_HOST \\
-            'cd /opt/futurekawa && \\
-             DEPLOY_TAG=preprod docker compose -f docker-compose.preprod.yml pull && \\
-             DEPLOY_TAG=preprod docker compose -f docker-compose.preprod.yml up -d --remove-orphans'
+          docker compose -f docker-compose.preprod.yml up -d --build
+          docker run --rm --network host -v "\$PWD:/workspace" -w /workspace mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \\
+            pwsh -NoLogo -NoProfile -File ./scripts/smoke-preprod.ps1
         """
+      }
+      post {
+        always {
+          sh 'docker compose -f docker-compose.preprod.yml down -v || true'
+        }
       }
     }
 
@@ -191,6 +199,22 @@ pipeline {
             'cd /opt/futurekawa && \\
              DEPLOY_TAG=prod docker compose -f docker-compose.prod.yml pull && \\
              DEPLOY_TAG=prod docker compose -f docker-compose.prod.yml up -d --remove-orphans'
+        """
+      }
+    }
+
+    stage('Smoke Prod (Post-Deploy)') {
+      agent any
+      when {
+        branch 'main'
+      }
+      steps {
+        sh """
+          docker run --rm --network host -v "\$PWD:/workspace" -w /workspace mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \\
+            pwsh -NoLogo -NoProfile -File ./scripts/smoke-preprod.ps1 \\
+            -FrontendUrl \"${params.PROD_FRONTEND_URL}\" \\
+            -MotherApiUrl \"${params.PROD_MOTHER_API_URL}\" \\
+            -ChildHealthUrls \"${params.PROD_CHILD_HEALTH_BRAZIL}\",\"${params.PROD_CHILD_HEALTH_COLOMBIA}\",\"${params.PROD_CHILD_HEALTH_ECUADOR}\"
         """
       }
     }
