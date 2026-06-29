@@ -142,25 +142,12 @@ pipeline {
       steps {
         unstash 'workspace-src'
         sh """
-          cat > docker-compose.preprod.ci.override.yml <<'EOF'
-services:
-  backend-child-brazil:
-    ports:
-      - "13101:3000"
-  backend-child-ecuador:
-    ports:
-      - "13102:3000"
-  backend-child-colombia:
-    ports:
-      - "13103:3000"
-  backend-mother:
-    ports:
-      - "13200:3000"
-  frontend:
-    ports:
-      - "18080:80"
-EOF
-          docker compose -f docker-compose.preprod.yml -f docker-compose.preprod.ci.override.yml up -d --build
+          export CHILD_BRAZIL_HOST_PORT=13101
+          export CHILD_ECUADOR_HOST_PORT=13102
+          export CHILD_COLOMBIA_HOST_PORT=13103
+          export MOTHER_HOST_PORT=13200
+          export FRONTEND_HOST_PORT=18080
+          docker compose -f docker-compose.preprod.yml up -d --build
           docker run --rm --network host --volumes-from jenkins -w "\$WORKSPACE" mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \\
             pwsh -NoLogo -NoProfile -File ./scripts/smoke-preprod.ps1 \\
             -FrontendUrl "http://localhost:18080" \\
@@ -170,8 +157,7 @@ EOF
       }
       post {
         always {
-          sh 'docker compose -f docker-compose.preprod.yml -f docker-compose.preprod.ci.override.yml down -v || true'
-          sh 'rm -f docker-compose.preprod.ci.override.yml || true'
+          sh 'docker compose -f docker-compose.preprod.yml down -v || true'
         }
       }
     }
