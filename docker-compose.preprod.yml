@@ -1,7 +1,7 @@
 version: '3.9'
 
 # -----------------------------------------------------------------------
-# Environnement PRE-PROD — branche develop
+# Environnement PRE-PROD — branche pre-prod
 # Variables requises sur le serveur :
 #   DEPLOY_TAG        = preprod
 #   POSTGRES_PASSWORD = <secret>

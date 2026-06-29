@@ -111,7 +111,7 @@ pipeline {
       agent any
       steps {
         script {
-          def isBranchPreprod = env.BRANCH_NAME == 'develop'
+          def isBranchPreprod = env.BRANCH_NAME == 'pre-prod'
           def isBranchProd    = env.BRANCH_NAME == 'main'
           def tag = isBranchProd ? 'prod' : (isBranchPreprod ? 'preprod' : 'ci')
 
@@ -147,7 +147,7 @@ pipeline {
     stage('Deploy Pre-prod') {
       agent any
       when {
-        branch 'develop'
+        branch 'pre-prod'
       }
       environment {
         SSH_PREPROD = credentials('ssh-preprod-server')
