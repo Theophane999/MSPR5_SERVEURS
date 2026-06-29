@@ -104,7 +104,7 @@ pipeline {
             docker build -t futurekawa/frontend:${tag} ./services/frontend
           """
 
-          if (isBranchPreprod || isBranchProd) {
+          if (isBranchProd) {
             withCredentials([
               string(credentialsId: 'docker-registry-url', variable: 'REGISTRY'),
               usernamePassword(credentialsId: 'docker-registry-credentials', usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASS')
@@ -127,6 +127,8 @@ pipeline {
               }
               sh 'docker logout "$REGISTRY" || true'
             }
+          } else if (isBranchPreprod) {
+            echo 'Pre-prod: registry push skipped (local smoke only).'
           }
         }
       }
