@@ -81,6 +81,12 @@ pipeline {
 
     stage('Docker Build & Tag') {
       agent any
+      when {
+        anyOf {
+          branch 'pre-prod'
+          branch 'main'
+        }
+      }
       steps {
         unstash 'workspace-src'
         script {
