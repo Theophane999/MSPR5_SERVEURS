@@ -895,3 +895,248 @@ dd {
     grid-template-columns: 1fr;
   }
 }
+
+/* ── Bannière alertes critiques globales ──────────────────────────── */
+.global-alerts-banner {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  background: rgba(239, 68, 68, 0.18);
+  border-left: 4px solid #ef4444;
+  padding: 0.75rem 1.5rem;
+  font-size: 0.88rem;
+}
+
+.banner-icon { font-size: 1.2rem; flex-shrink: 0; }
+
+.banner-messages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+}
+
+.banner-messages span::before { content: '• '; }
+
+/* ── KPIs globaux ─────────────────────────────────────────────────── */
+.global-kpis {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+}
+
+.kpi-card {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  padding: 0.75rem 1.25rem;
+  min-width: 140px;
+  flex: 1;
+}
+
+.kpi-card .kpi-icon { font-size: 1.5rem; line-height: 1; }
+
+.kpi-card div { display: flex; flex-direction: column; gap: 0.15rem; }
+.kpi-card span { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.kpi-card strong { font-size: 1.4rem; font-weight: 700; }
+
+.kpi-card.kpi-critical { border-color: rgba(239,68,68,0.5); background: rgba(239,68,68,0.08); }
+.kpi-card.kpi-critical strong { color: #ef4444; }
+.kpi-card.kpi-ok { border-color: rgba(52,211,153,0.3); }
+.kpi-card.kpi-ok strong { color: #34d399; }
+
+/* ── Country detail + tabs ────────────────────────────────────────── */
+.country-detail {
+  margin: 1rem 1.5rem;
+  border-radius: 1rem;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.detail-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.detail-kpis {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.kpi-chip {
+  padding: 0.3rem 0.75rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid var(--line);
+}
+
+.kpi-chip.ok       { border-color: rgba(52,211,153,0.4); color: #34d399; background: rgba(52,211,153,0.08); }
+.kpi-chip.critical { border-color: rgba(239,68,68,0.4);  color: #ef4444; background: rgba(239,68,68,0.08); }
+
+/* Navigation tabs */
+.detail-tabs {
+  display: flex;
+  gap: 0.25rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0;
+}
+
+.detail-tabs button {
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  padding: 0.6rem 1rem;
+  font-size: 0.88rem;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  position: relative;
+  bottom: -1px;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.detail-tabs button:hover { color: var(--fg); }
+
+.detail-tabs button.active {
+  color: var(--accent, #6ee7b7);
+  border-bottom-color: var(--accent, #6ee7b7);
+  font-weight: 600;
+}
+
+.detail-tabs button.tab-has-alerts { color: #f87171; }
+.detail-tabs button.tab-has-alerts.active { border-bottom-color: #ef4444; }
+
+.tab-badge {
+  background: rgba(255,255,255,0.15);
+  border-radius: 999px;
+  font-size: 0.7rem;
+  padding: 0.1rem 0.45rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.tab-badge.critical { background: rgba(239,68,68,0.25); color: #ef4444; }
+
+/* Tab content */
+.tab-panel { display: flex; flex-direction: column; gap: 1.25rem; padding-top: 0.75rem; }
+
+/* ── Capteurs — valeurs live ──────────────────────────────────────── */
+.sensor-live-row {
+  display: flex;
+  gap: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.sensor-big-val {
+  flex: 1;
+  min-width: 180px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--line);
+  border-radius: 0.75rem;
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.sensor-big-val span { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em; }
+.sensor-big-val strong { font-size: 2.4rem; font-weight: 700; line-height: 1; }
+.sensor-big-val small { font-size: 0.78rem; color: var(--muted); }
+
+.sensor-big-val.temp strong { color: #f97316; }
+.sensor-big-val.hum  strong { color: #38bdf8; }
+
+/* ── Chart avec axes ──────────────────────────────────────────────── */
+.chart-wrapper {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.chart-yaxis {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--muted);
+  padding: 4px 0;
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+.chart-svg { flex: 1; min-height: 120px; }
+
+.grid-line { stroke: rgba(255,255,255,0.06); stroke-width: 1; }
+
+/* ── Lots split view ──────────────────────────────────────────────── */
+.lots-split {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 1.25rem;
+}
+
+.lot-detail { display: flex; flex-direction: column; gap: 1rem; }
+
+.lot-status-chip {
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.1);
+}
+
+.badge-ok       { background: rgba(52,211,153,0.2); color: #34d399; border-color: rgba(52,211,153,0.4); }
+.badge-warning  { background: rgba(251,191,36,0.2); color: #fbbf24; border-color: rgba(251,191,36,0.4); }
+.badge-critical { background: rgba(239,68,68,0.2);  color: #ef4444; border-color: rgba(239,68,68,0.4); }
+
+.ok-val   { color: #34d399; }
+.warn-val { color: #fbbf24; }
+.crit-val { color: #ef4444; }
+
+/* ── Cards région cliquables ──────────────────────────────────────── */
+.region-card { cursor: pointer; transition: box-shadow 0.15s, border-color 0.15s; }
+.region-card.selected { border-color: var(--accent, #6ee7b7) !important; box-shadow: 0 0 0 2px rgba(110,231,183,0.25); }
+
+/* ── Alertes améliorées ───────────────────────────────────────────── */
+.alert-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 0.25rem;
+}
+
+.alert-header small { font-size: 0.75rem; color: var(--muted); }
+
+.ok-feedback { color: #34d399; }
+
+/* ── Expéditions statut chips ─────────────────────────────────────── */
+.exp-ok        { border-left: 3px solid #34d399; }
+.exp-transit   { border-left: 3px solid #60a5fa; }
+.exp-cancelled { border-left: 3px solid #9ca3af; opacity: 0.7; }
+.exp-pending   { border-left: 3px solid #fbbf24; }
+
+.status-chip.exp-ok        { background: rgba(52,211,153,0.15); color: #34d399; }
+.status-chip.exp-transit   { background: rgba(96,165,250,0.15); color: #60a5fa; }
+.status-chip.exp-cancelled { background: rgba(156,163,175,0.15); color: #9ca3af; }
+.status-chip.exp-pending   { background: rgba(251,191,36,0.15); color: #fbbf24; }
+
+@media (max-width: 950px) {
+  .lots-split { grid-template-columns: 1fr; }
+  .sensor-live-row { flex-direction: column; }
+  .global-kpis { padding: 0.75rem; }
+  .kpi-card { min-width: 120px; }
+}
