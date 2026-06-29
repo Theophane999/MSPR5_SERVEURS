@@ -19,7 +19,7 @@ pipeline {
   }
 
   environment {
-    IMAGE_TAG        = "${env.GIT_COMMIT?.take(8) ?: 'ci'}"
+    IMAGE_TAG        = 'ci'
   }
 
   stages {
@@ -77,6 +77,7 @@ pipeline {
         script {
           def isBranchPreprod = env.BRANCH_NAME == 'pre-prod'
           def isBranchProd    = env.BRANCH_NAME == 'main'
+          env.IMAGE_TAG = env.GIT_COMMIT ? env.GIT_COMMIT.take(8) : 'ci'
           def tag = isBranchProd ? 'prod' : (isBranchPreprod ? 'preprod' : 'ci')
 
           sh """
