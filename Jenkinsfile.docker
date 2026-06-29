@@ -10,6 +10,12 @@ pipeline {
     githubPush()
   }
 
+  environment {
+    IMAGE_TAG        = "${env.GIT_COMMIT?.take(8) ?: 'ci'}"
+    REGISTRY         = credentials('docker-registry-url')
+    REGISTRY_CREDS   = 'docker-registry-credentials'
+  }
+
   stages {
     stage('Checkout') {
       agent any
@@ -101,34 +107,107 @@ pipeline {
       }
     }
 
-    stage('Docker Build') {
+    stage('Docker Build & Tag') {
       agent any
-      parallel {
-        stage('backend-child image') {
-          steps {
-            sh 'docker build -t futurekawa/backend-child:ci ./services/backend-child'
-          }
-        }
+      steps {
+        script {
+          def isBranchPreprod = env.BRANCH_NAME == 'develop'
+          def isBranchProd    = env.BRANCH_NAME == 'main'
+          def tag = isBranchProd ? 'prod' : (isBranchPreprod ? 'preprod' : 'ci')
 
-        stage('backend-mother image') {
-          steps {
-            sh 'docker build -t futurekawa/backend-mother:ci ./services/backend-mother'
-          }
-        }
+          sh """
+            docker build -t futurekawa/backend-child:${tag} ./services/backend-child
+            docker build -t futurekawa/backend-mother:${tag} ./services/backend-mother
+            docker build -t futurekawa/frontend:${tag} ./services/frontend
+          """
 
-        stage('frontend image') {
-          steps {
-            sh 'docker build -t futurekawa/frontend:ci ./services/frontend'
+          if (isBranchPreprod || isBranchProd) {
+            withDockerRegistry([credentialsId: env.REGISTRY_CREDS, url: 'https://' + env.REGISTRY]) {
+              sh """
+                docker push futurekawa/backend-child:${tag}
+                docker push futurekawa/backend-mother:${tag}
+                docker push futurekawa/frontend:${tag}
+              """
+              if (isBranchProd) {
+                sh """
+                  docker tag futurekawa/backend-child:prod futurekawa/backend-child:${env.IMAGE_TAG}
+                  docker tag futurekawa/backend-mother:prod futurekawa/backend-mother:${env.IMAGE_TAG}
+                  docker tag futurekawa/frontend:prod futurekawa/frontend:${env.IMAGE_TAG}
+                  docker push futurekawa/backend-child:${env.IMAGE_TAG}
+                  docker push futurekawa/backend-mother:${env.IMAGE_TAG}
+                  docker push futurekawa/frontend:${env.IMAGE_TAG}
+                """
+              }
+            }
           }
         }
+      }
+    }
+
+    stage('Deploy Pre-prod') {
+      agent any
+      when {
+        branch 'develop'
+      }
+      environment {
+        SSH_PREPROD = credentials('ssh-preprod-server')
+        PREPROD_HOST = credentials('preprod-host')
+      }
+      steps {
+        sh """
+          ssh -o StrictHostKeyChecking=no -i \$SSH_PREPROD \$PREPROD_HOST \\
+            'cd /opt/futurekawa && \\
+             DEPLOY_TAG=preprod docker compose -f docker-compose.preprod.yml pull && \\
+             DEPLOY_TAG=preprod docker compose -f docker-compose.preprod.yml up -d --remove-orphans'
+        """
+      }
+    }
+
+    stage('Approval Prod') {
+      when {
+        branch 'main'
+      }
+      steps {
+        timeout(time: 30, unit: 'MINUTES') {
+          input message: "Deployer la version ${env.IMAGE_TAG} en PRODUCTION ?",
+                ok: 'Oui, deployer',
+                submitter: 'prod-approvers'
+        }
+      }
+    }
+
+    stage('Deploy Prod') {
+      agent any
+      when {
+        branch 'main'
+      }
+      environment {
+        SSH_PROD  = credentials('ssh-prod-server')
+        PROD_HOST = credentials('prod-host')
+      }
+      steps {
+        sh """
+          ssh -o StrictHostKeyChecking=no -i \$SSH_PROD \$PROD_HOST \\
+            'cd /opt/futurekawa && \\
+             DEPLOY_TAG=prod docker compose -f docker-compose.prod.yml pull && \\
+             DEPLOY_TAG=prod docker compose -f docker-compose.prod.yml up -d --remove-orphans'
+        """
       }
     }
   }
 
   post {
     always {
-      junit allowEmptyResults: true, testResults: '**/build/test-results/test/*.xml'
-      archiveArtifacts allowEmptyArchive: true, artifacts: 'services/frontend/dist/**'
+      node('') {
+        junit allowEmptyResults: true, testResults: '**/build/test-results/test/*.xml'
+        archiveArtifacts allowEmptyArchive: true, artifacts: 'services/frontend/dist/**'
+      }
+    }
+    success {
+      echo "Pipeline reussi sur la branche ${env.BRANCH_NAME} — tag: ${env.IMAGE_TAG}"
+    }
+    failure {
+      echo "Pipeline en echec sur ${env.BRANCH_NAME} — verifier les logs"
     }
   }
 }
