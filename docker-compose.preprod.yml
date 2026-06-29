@@ -78,7 +78,7 @@ services:
       - db-brazil
       - mosquitto
     ports:
-      - "3101:3000"
+      - "${CHILD_BRAZIL_HOST_PORT:-3101}:3000"
 
   backend-child-ecuador:
     build:
@@ -100,7 +100,7 @@ services:
       - db-ecuador
       - mosquitto
     ports:
-      - "3102:3000"
+      - "${CHILD_ECUADOR_HOST_PORT:-3102}:3000"
 
   backend-child-colombia:
     build:
@@ -122,7 +122,7 @@ services:
       - db-colombia
       - mosquitto
     ports:
-      - "3103:3000"
+      - "${CHILD_COLOMBIA_HOST_PORT:-3103}:3000"
 
   backend-mother:
     build:
@@ -137,7 +137,7 @@ services:
       - backend-child-ecuador
       - backend-child-colombia
     ports:
-      - "3200:3000"
+      - "${MOTHER_HOST_PORT:-3200}:3000"
 
   frontend:
     build:
@@ -149,7 +149,7 @@ services:
     depends_on:
       - backend-mother
     ports:
-      - "8080:80"
+      - "${FRONTEND_HOST_PORT:-8080}:80"
 
 volumes:
   db-brazil-data:
