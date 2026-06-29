@@ -35,83 +35,41 @@ pipeline {
     stage('Backend Tests') {
       parallel {
         stage('backend-child') {
-          agent {
-            docker {
-              image 'gradle:8.10.2-jdk21'
-              args '-u root:root'
-              reuseNode true
-            }
-          }
+          agent any
           steps {
-            dir('services/backend-child') {
-              sh 'gradle --no-daemon test'
-            }
+            sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/services/backend-child gradle:8.10.2-jdk21 gradle --no-daemon test'
           }
         }
 
         stage('backend-mother') {
-          agent {
-            docker {
-              image 'gradle:8.10.2-jdk21'
-              args '-u root:root'
-              reuseNode true
-            }
-          }
+          agent any
           steps {
-            dir('services/backend-mother') {
-              sh 'gradle --no-daemon test'
-            }
+            sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/services/backend-mother gradle:8.10.2-jdk21 gradle --no-daemon test'
           }
         }
       }
     }
 
     stage('Frontend Unit Tests') {
-      agent {
-        docker {
-          image 'mcr.microsoft.com/playwright:v1.54.0-jammy'
-          args '-u root:root'
-          reuseNode true
-        }
-      }
+      agent any
       steps {
-        dir('services/frontend') {
-          sh 'npm ci'
-          sh 'CHROME_BIN=$(find /ms-playwright -name chrome -type f | head -n 1); if [ -z "$CHROME_BIN" ]; then echo "Chrome binary not found"; exit 1; fi; export CHROME_BIN; npx ng test --watch=false --browsers=ChromeHeadlessNoSandbox --progress=false'
-        }
+        sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/services/frontend mcr.microsoft.com/playwright:v1.54.0-jammy /bin/bash -lc "npm ci && CHROME_BIN=$(find /ms-playwright -name chrome -type f | head -n 1); if [ -z \"$CHROME_BIN\" ]; then echo Chrome binary not found; exit 1; fi; export CHROME_BIN; npx ng test --watch=false --browsers=ChromeHeadlessNoSandbox --progress=false"'
       }
     }
 
     stage('Frontend Build') {
-      agent {
-        docker {
-          image 'node:20'
-          args '-u root:root'
-          reuseNode true
-        }
-      }
+      agent any
       steps {
-        dir('services/frontend') {
-          sh 'npm ci'
-          sh 'npm run build'
-        }
+        sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/services/frontend node:20 /bin/bash -lc "npm ci && npm run build"'
       }
     }
 
     stage('Terraform Validate') {
-      agent {
-        docker {
-          image 'hashicorp/terraform:1.8.5'
-          args '-u root:root'
-          reuseNode true
-        }
-      }
+      agent any
       steps {
-        dir('terraform') {
-          sh 'terraform init -backend=false'
-          sh 'terraform fmt -check'
-          sh 'terraform validate'
-        }
+        sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/terraform hashicorp/terraform:1.8.5 init -backend=false'
+        sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/terraform hashicorp/terraform:1.8.5 fmt -check'
+        sh 'docker run --rm -v "$WORKSPACE:/workspace" -w /workspace/terraform hashicorp/terraform:1.8.5 validate'
       }
     }
 
