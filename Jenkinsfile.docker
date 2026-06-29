@@ -58,7 +58,7 @@ pipeline {
       agent any
       steps {
         unstash 'workspace-src'
-        sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/services/frontend" mcr.microsoft.com/playwright:v1.54.0-jammy /bin/bash -lc "npm ci && CHROME_BIN=$(find /ms-playwright -name chrome -type f | head -n 1); if [ -z \"$CHROME_BIN\" ]; then echo Chrome binary not found; exit 1; fi; export CHROME_BIN; npx ng test --watch=false --browsers=ChromeHeadlessNoSandbox --progress=false"'
+        sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/services/frontend" mcr.microsoft.com/playwright:v1.54.0-jammy /bin/bash -lc "npm ci && CHROME_BIN=$(which google-chrome-stable || which google-chrome || which chromium || which chromium-browser || find /ms-playwright -type f \( -name chrome -o -name chromium \) 2>/dev/null | head -n 1); if [ -z \"$CHROME_BIN\" ]; then echo Chrome/Chromium binary not found; exit 1; fi; export CHROME_BIN; npx ng test --watch=false --browsers=ChromeHeadlessNoSandbox --progress=false"'
       }
     }
 
