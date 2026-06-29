@@ -1,0 +1,82 @@
+version: '3.9'
+
+# -----------------------------------------------------------------------
+# Environnement PRE-PROD — branche pre-prod
+# Variables requises sur le serveur :
+#   DEPLOY_TAG        = preprod
+#   POSTGRES_PASSWORD = <secret>
+#   MQTT_HOST         = <broker>
+# -----------------------------------------------------------------------
+
+services:
+
+  # ── Base de données ────────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: futurekawa
+      POSTGRES_USER: futurekawa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - db-preprod-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U futurekawa"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - futurekawa-net
+
+  # ── Backend Child (un exemple par pays — à dupliquer selon config) ──
+  backend-child:
+    image: futurekawa/backend-child:${DEPLOY_TAG:-preprod}
+    restart: unless-stopped
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/futurekawa
+      SPRING_DATASOURCE_USERNAME: futurekawa
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      MQTT_HOST: ${MQTT_HOST:-localhost}
+      APP_COUNTRY: preprod-child
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - futurekawa-net
+
+  # ── Backend Mother ─────────────────────────────────────────────────
+  backend-mother:
+    image: futurekawa/backend-mother:${DEPLOY_TAG:-preprod}
+    restart: unless-stopped
+    environment:
+      APP_CHILDREN_SERVICES: child=http://backend-child:8080
+      APP_ALERT_THRESHOLD_TEMP_MIN: 15
+      APP_ALERT_THRESHOLD_TEMP_MAX: 30
+      APP_ALERT_THRESHOLD_HUMIDITE_MIN: 45
+      APP_ALERT_THRESHOLD_HUMIDITE_MAX: 75
+    depends_on:
+      - backend-child
+    ports:
+      - "3200:8080"
+    networks:
+      - futurekawa-net
+
+  # ── Frontend ───────────────────────────────────────────────────────
+  frontend:
+    image: futurekawa/frontend:${DEPLOY_TAG:-preprod}
+    restart: unless-stopped
+    environment:
+      BACKEND_MOTHER_URL: http://backend-mother:8080
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend-mother
+    networks:
+      - futurekawa-net
+
+volumes:
+  db-preprod-data:
+
+networks:
+  futurekawa-net:
+    driver: bridge
