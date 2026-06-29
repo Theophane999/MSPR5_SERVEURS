@@ -1,82 +1,157 @@
-version: '3.9'
-
 # -----------------------------------------------------------------------
-# Environnement PRE-PROD — branche pre-prod
-# Variables requises sur le serveur :
-#   DEPLOY_TAG        = preprod
-#   POSTGRES_PASSWORD = <secret>
-#   MQTT_HOST         = <broker>
+# Environnement PRE-PROD local (a lancer depuis la branche feature)
+# Objectif: reproduire le flux prod avec 3 pays + backend mere + frontend
 # -----------------------------------------------------------------------
 
 services:
-
-  # ── Base de données ────────────────────────────────────────────────
-  db:
+  db-brazil:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: futurekawa
+      POSTGRES_DB: futurekawa_brazil
       POSTGRES_USER: futurekawa
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-futurekawa_pwd}
     volumes:
-      - db-preprod-data:/var/lib/postgresql/data
+      - db-brazil-data:/var/lib/postgresql/data
+      - ./services/backend-child/Bdd/MSPR5_BDD-1778060454.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U futurekawa"]
       interval: 10s
       timeout: 5s
-      retries: 5
-    networks:
-      - futurekawa-net
+      retries: 10
 
-  # ── Backend Child (un exemple par pays — à dupliquer selon config) ──
-  backend-child:
-    image: futurekawa/backend-child:${DEPLOY_TAG:-preprod}
+  db-ecuador:
+    image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/futurekawa
-      SPRING_DATASOURCE_USERNAME: futurekawa
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-      MQTT_HOST: ${MQTT_HOST:-localhost}
-      APP_COUNTRY: preprod-child
-    depends_on:
-      db:
-        condition: service_healthy
-    networks:
-      - futurekawa-net
+      POSTGRES_DB: futurekawa_ecuador
+      POSTGRES_USER: futurekawa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-futurekawa_pwd}
+    volumes:
+      - db-ecuador-data:/var/lib/postgresql/data
+      - ./services/backend-child/Bdd/MSPR5_BDD-1778060454.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U futurekawa"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
 
-  # ── Backend Mother ─────────────────────────────────────────────────
+  db-colombia:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: futurekawa_colombia
+      POSTGRES_USER: futurekawa
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-futurekawa_pwd}
+    volumes:
+      - db-colombia-data:/var/lib/postgresql/data
+      - ./services/backend-child/Bdd/MSPR5_BDD-1778060454.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U futurekawa"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+
+  backend-child-brazil:
+    build:
+      context: ./services/backend-child
+    image: futurekawa/backend-child:preprod-local
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      COUNTRY: Brazil
+      ENTREPOT_ID: 1
+      DB_HOST: db-brazil
+      DB_PORT: 5432
+      DB_NAME: futurekawa_brazil
+      DB_USER: futurekawa
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-futurekawa_pwd}
+      MQTT_BROKER: tcp://mosquitto:1883
+      MQTT_INTERVAL_SECONDS: 300
+    depends_on:
+      - db-brazil
+      - mosquitto
+    ports:
+      - "3101:3000"
+
+  backend-child-ecuador:
+    build:
+      context: ./services/backend-child
+    image: futurekawa/backend-child:preprod-local
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      COUNTRY: Ecuador
+      ENTREPOT_ID: 2
+      DB_HOST: db-ecuador
+      DB_PORT: 5432
+      DB_NAME: futurekawa_ecuador
+      DB_USER: futurekawa
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-futurekawa_pwd}
+      MQTT_BROKER: tcp://mosquitto:1883
+      MQTT_INTERVAL_SECONDS: 300
+    depends_on:
+      - db-ecuador
+      - mosquitto
+    ports:
+      - "3102:3000"
+
+  backend-child-colombia:
+    build:
+      context: ./services/backend-child
+    image: futurekawa/backend-child:preprod-local
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      COUNTRY: Colombia
+      ENTREPOT_ID: 3
+      DB_HOST: db-colombia
+      DB_PORT: 5432
+      DB_NAME: futurekawa_colombia
+      DB_USER: futurekawa
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-futurekawa_pwd}
+      MQTT_BROKER: tcp://mosquitto:1883
+      MQTT_INTERVAL_SECONDS: 300
+    depends_on:
+      - db-colombia
+      - mosquitto
+    ports:
+      - "3103:3000"
+
   backend-mother:
-    image: futurekawa/backend-mother:${DEPLOY_TAG:-preprod}
+    build:
+      context: ./services/backend-mother
+    image: futurekawa/backend-mother:preprod-local
     restart: unless-stopped
     environment:
-      APP_CHILDREN_SERVICES: child=http://backend-child:8080
-      APP_ALERT_THRESHOLD_TEMP_MIN: 15
-      APP_ALERT_THRESHOLD_TEMP_MAX: 30
-      APP_ALERT_THRESHOLD_HUMIDITE_MIN: 45
-      APP_ALERT_THRESHOLD_HUMIDITE_MAX: 75
+      PORT: 3000
+      CHILDREN_SERVICES: brazil=http://backend-child-brazil:3000,ecuador=http://backend-child-ecuador:3000,colombia=http://backend-child-colombia:3000
     depends_on:
-      - backend-child
+      - backend-child-brazil
+      - backend-child-ecuador
+      - backend-child-colombia
     ports:
-      - "3200:8080"
-    networks:
-      - futurekawa-net
+      - "3200:3000"
 
-  # ── Frontend ───────────────────────────────────────────────────────
   frontend:
-    image: futurekawa/frontend:${DEPLOY_TAG:-preprod}
+    build:
+      context: ./services/frontend
+    image: futurekawa/frontend:preprod-local
     restart: unless-stopped
     environment:
-      BACKEND_MOTHER_URL: http://backend-mother:8080
-    ports:
-      - "8080:80"
+      BACKEND_MOTHER_PUBLIC_URL: http://localhost:3200
     depends_on:
       - backend-mother
-    networks:
-      - futurekawa-net
+    ports:
+      - "8080:80"
 
 volumes:
-  db-preprod-data:
-
-networks:
-  futurekawa-net:
-    driver: bridge
+  db-brazil-data:
+  db-ecuador-data:
+  db-colombia-data:
