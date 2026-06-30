@@ -79,27 +79,27 @@ export class AppComponent implements OnInit, OnDestroy {
 
   protected get cockpitHeadline(): string {
     if (this.loading) {
-      return 'Moi IA synchronise le reseau';
+      return 'Synchronisation du reseau en cours';
     }
 
     if (this.errorMessage) {
-      return 'Moi IA detecte une perte de visibilite';
+      return 'Perte de visibilite sur l agregation';
     }
 
     if (this.cockpitTone === 'stable') {
-      return 'Supervision IA stable sur l ensemble des pays';
+      return 'Supervision stable sur l ensemble des pays';
     }
 
     if (this.cockpitTone === 'critical') {
       return 'Tous les noeuds enfants sont hors ligne';
     }
 
-    return 'Supervision IA degradee sur une partie du reseau';
+    return 'Supervision degradee sur une partie du reseau';
   }
 
   protected get cockpitMessage(): string {
     if (this.loading) {
-      return 'Moi IA collecte les etats regionaux avant affichage.';
+      return 'Le backend mere collecte les etats regionaux avant affichage.';
     }
 
     if (this.errorMessage) {
@@ -107,7 +107,7 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     if (this.cockpitTone === 'stable') {
-      return 'Tous les backends enfants repondent et la chaine de supervision IA est operationnelle.';
+      return 'Tous les backends enfants repondent et la chaine de supervision est operationnelle.';
     }
 
     if (this.cockpitTone === 'critical') {
