@@ -1034,6 +1034,45 @@ dd {
 /* Tab content */
 .tab-panel { display: flex; flex-direction: column; gap: 1.25rem; padding-top: 0.75rem; }
 
+.lot-crud {
+  padding: 18px;
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.lot-form-grid {
+  margin-top: 12px;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+
+.lot-form-grid label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.lot-form-grid input {
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: rgba(8, 15, 35, 0.9);
+  color: var(--ink);
+  padding: 10px;
+  font: inherit;
+}
+
+.lot-actions {
+  margin-top: 14px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
 /* ── Capteurs — valeurs live ──────────────────────────────────────── */
 .sensor-live-row {
   display: flex;

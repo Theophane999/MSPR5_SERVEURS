@@ -1,15 +1,16 @@
 import { DatePipe, DecimalPipe, NgClass, NgFor, NgIf } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { AlertView, ChildStatus, DashboardResponse, ExpeditionView, HistoryPoint, LotView } from './models/dashboard.model';
-import { DashboardService } from './services/dashboard.service';
+import { DashboardService, LotUpsertPayload } from './services/dashboard.service';
 
 export type DetailTab = 'sensors' | 'stocks' | 'expeditions' | 'alerts';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [NgFor, NgIf, NgClass, DatePipe, DecimalPipe],
+  imports: [NgFor, NgIf, NgClass, DatePipe, DecimalPipe, FormsModule],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
@@ -31,6 +32,21 @@ export class AppComponent implements OnInit, OnDestroy {
   protected selectedLotId?: string;
   protected activeTab: DetailTab = 'sensors';
   protected nextRefreshIn = 300;
+  protected lotActionMessage?: string;
+  protected lotActionError?: string;
+
+  protected lotForm: {
+    lotReference: string;
+    datePeremption: number | null;
+    variete: string;
+    process: string;
+    scoreSca: number | null;
+    poidsKg: number | null;
+    qualite: string;
+    quantite: number | null;
+    storageDate: string;
+    idExploitation: number | null;
+  } = this.emptyLotForm();
 
   ngOnInit(): void {
     this.refresh();
@@ -149,6 +165,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   protected selectLot(lotId: string): void {
     this.selectedLotId = lotId;
+    this.fillFormFromSelectedLot();
   }
 
   protected get selectedCountry(): ChildStatus | undefined {
@@ -402,10 +419,135 @@ export class AppComponent implements OnInit, OnDestroy {
           if (!selectedLotExists) {
             this.selectedLotId = selectedLots[0]?.id;
           }
+
+          this.fillFormFromSelectedLot();
         },
         error: (error: { message?: string }) => {
           this.errorMessage = error.message ?? 'Erreur inconnue';
         },
       });
+  }
+
+  protected createLot(): void {
+    const selected = this.selectedCountry;
+    if (!selected?.url) {
+      this.lotActionError = 'Aucun backend enfant selectionne';
+      return;
+    }
+
+    this.lotActionMessage = undefined;
+    this.lotActionError = undefined;
+
+    this.dashboardService.createLot(selected.url, this.buildPayloadForCreate()).subscribe({
+      next: () => {
+        this.lotActionMessage = 'Lot ajoute avec succes';
+        this.refresh();
+      },
+      error: (error: { message?: string }) => {
+        this.lotActionError = error.message ?? 'Echec ajout lot';
+      },
+    });
+  }
+
+  protected updateSelectedLot(): void {
+    const selected = this.selectedCountry;
+    if (!selected?.url || !this.selectedLotId) {
+      this.lotActionError = 'Aucun lot selectionne';
+      return;
+    }
+
+    this.lotActionMessage = undefined;
+    this.lotActionError = undefined;
+
+    this.dashboardService.updateLot(selected.url, this.selectedLotId, this.buildPayloadForUpdate()).subscribe({
+      next: () => {
+        this.lotActionMessage = 'Lot mis a jour';
+        this.refresh();
+      },
+      error: (error: { message?: string }) => {
+        this.lotActionError = error.message ?? 'Echec mise a jour lot';
+      },
+    });
+  }
+
+  protected deleteSelectedLot(): void {
+    const selected = this.selectedCountry;
+    if (!selected?.url || !this.selectedLotId) {
+      this.lotActionError = 'Aucun lot selectionne';
+      return;
+    }
+
+    this.lotActionMessage = undefined;
+    this.lotActionError = undefined;
+
+    this.dashboardService.deleteLot(selected.url, this.selectedLotId).subscribe({
+      next: () => {
+        this.lotActionMessage = 'Lot supprime';
+        this.selectedLotId = undefined;
+        this.refresh();
+      },
+      error: (error: { message?: string }) => {
+        this.lotActionError = error.message ?? 'Echec suppression lot';
+      },
+    });
+  }
+
+  protected resetLotForm(): void {
+    this.lotForm = this.emptyLotForm();
+  }
+
+  private fillFormFromSelectedLot(): void {
+    const lot = this.selectedLot;
+    if (!lot) {
+      this.lotForm = this.emptyLotForm();
+      return;
+    }
+
+    this.lotForm = {
+      lotReference: lot.id,
+      datePeremption: lot.datePeremption ?? null,
+      variete: lot.variete ?? '',
+      process: lot.process ?? '',
+      scoreSca: lot.scoreSca ?? null,
+      poidsKg: lot.poidsKg ?? null,
+      qualite: lot.qualite ?? '',
+      quantite: lot.quantite ?? null,
+      storageDate: lot.storageDate ?? '',
+      idExploitation: null,
+    };
+  }
+
+  private buildPayloadForCreate(): LotUpsertPayload {
+    return {
+      lotReference: this.lotForm.lotReference,
+      datePeremption: this.lotForm.datePeremption ?? undefined,
+      variete: this.lotForm.variete,
+      process: this.lotForm.process,
+      scoreSca: this.lotForm.scoreSca ?? undefined,
+      poidsKg: this.lotForm.poidsKg ?? undefined,
+      qualite: this.lotForm.qualite,
+      quantite: this.lotForm.quantite ?? undefined,
+      storageDate: this.lotForm.storageDate,
+      idExploitation: this.lotForm.idExploitation ?? undefined,
+    };
+  }
+
+  private buildPayloadForUpdate(): LotUpsertPayload {
+    return this.buildPayloadForCreate();
+  }
+
+  private emptyLotForm() {
+    return {
+      lotReference: '',
+      datePeremption: null,
+      variete: '',
+      process: '',
+      scoreSca: null,
+      poidsKg: null,
+      qualite: '',
+      quantite: null,
+      storageDate: '',
+      idExploitation: null,
+    };
   }
 }
