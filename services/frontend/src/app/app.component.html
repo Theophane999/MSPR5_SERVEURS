@@ -19,7 +19,7 @@
 
   <section class="cockpit-hero">
     <div class="hero-copy">
-      <p class="kicker">FutureKawa Control Deck</p>
+      <p class="kicker">Tableau de supervision</p>
       <h1>{{ cockpitHeadline }}</h1>
       <p class="hero-message">{{ cockpitMessage }}</p>
 
@@ -153,12 +153,12 @@
           <strong>mother</strong>
         </div>
         <div>
-          <span>Source</span>
-          <strong>{{ apiUrl }}</strong>
+          <span>Serveurs enfants</span>
+          <strong>{{ children.length }} détecté(s)</strong>
         </div>
         <div>
-          <span>Mode</span>
-          <strong>{{ loading ? 'collecte' : 'diffusion' }}</strong>
+          <span>Synchronisation</span>
+          <strong>{{ loading ? 'en cours' : 'à jour' }}</strong>
         </div>
       </div>
 

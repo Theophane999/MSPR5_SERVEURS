@@ -16,6 +16,7 @@ export type DetailTab = 'sensors' | 'stocks' | 'expeditions' | 'alerts';
 })
 export class AppComponent implements OnInit, OnDestroy {
   private readonly dashboardService = inject(DashboardService);
+  private readonly themeService = inject(ThemeService);
   private refreshTimer?: ReturnType<typeof setInterval>;
   private countdownTimer?: ReturnType<typeof setInterval>;
   private pendingScrollTop?: number;
@@ -27,7 +28,7 @@ export class AppComponent implements OnInit, OnDestroy {
   protected readonly refreshIntervalSeconds = 300;
 
   protected loading = true;
-  protected apiUrl = `${this.dashboardService.motherUrl()}/api/children`;
+  protected apiStatus = 'Initialisation'; // Statut au lieu de l'URL en dur
   protected aggregatedAt?: string;
   protected children: ChildStatus[] = [];
   protected errorMessage?: string;
@@ -111,7 +112,7 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     if (this.cockpitTone === 'stable') {
-      return 'Plateforme stable sur l ensemble des pays';
+      return 'Supervision stable sur l ensemble des pays';
     }
 
     if (this.cockpitTone === 'critical') {
@@ -181,6 +182,10 @@ export class AppComponent implements OnInit, OnDestroy {
     this.fillFormFromSelectedLot();
   }
 
+  protected switchUserMode(mode: UserMode): void {
+    this.userMode = mode;
+  }
+
   protected get selectedCountry(): ChildStatus | undefined {
     if (!this.children.length) {
       return undefined;
@@ -202,6 +207,10 @@ export class AppComponent implements OnInit, OnDestroy {
     return [...(this.selectedCountry?.lots ?? [])].sort((a, b) => b.storageDate.localeCompare(a.storageDate));
   }
 
+  protected get filteredCountryLots(): LotView[] {
+    return filterLots(this.selectedCountryLots, this.stockFilter);
+  }
+
   protected get selectedLot(): LotView | undefined {
     const lots = this.selectedCountryLots;
     if (!lots.length) {
@@ -221,6 +230,10 @@ export class AppComponent implements OnInit, OnDestroy {
 
   protected get selectedCountryExpeditions(): ExpeditionView[] {
     return [...(this.selectedCountry?.expeditions ?? [])].sort((a, b) => b.departAt.localeCompare(a.departAt));
+  }
+
+  protected get filteredCountryExpeditions(): ExpeditionView[] {
+    return filterExpeditions(this.selectedCountryExpeditions, this.expeditionFilter);
   }
 
   protected get selectedCountryStockState() {
@@ -499,6 +512,26 @@ export class AppComponent implements OnInit, OnDestroy {
     return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
   }
 
+  // ── User Mode & Alert Management ─────────────────────────────
+
+  protected get quickAlerts(): AlertView[] {
+    // Pour le terrain: uniquement les alertes critiques du pays sélectionné
+    // Pour le siège: les 5 premières alertes critiques globales
+    if (this.userMode === 'terrain') {
+      return (this.selectedCountry?.alerts ?? []).filter(a => a.level === 'critical').slice(0, 3);
+    } else {
+      return this.globalCriticalAlerts.slice(0, 5);
+    }
+  }
+
+  protected get hasUrgentAlerts(): boolean {
+    return this.quickAlerts.length > 0;
+  }
+
+  protected dismissAlertBanner(): void {
+    this.showAlertBanner = false;
+  }
+
   protected refresh(): void {
     this.loading = true;
     this.errorMessage = undefined;
@@ -512,6 +545,7 @@ export class AppComponent implements OnInit, OnDestroy {
         next: (payload: DashboardResponse) => {
           this.children = payload.children;
           this.aggregatedAt = payload.aggregatedAt;
+          this.apiStatus = 'Connecté'; // Succès
 
           if (!this.children.length) {
             this.selectedCountryName = undefined;
