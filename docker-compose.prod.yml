@@ -18,7 +18,7 @@ services:
     environment:
       POSTGRES_DB: futurekawa
       POSTGRES_USER: futurekawa
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-futurekawa_pwd}
     volumes:
       - db-prod-data:/var/lib/postgresql/data
     healthcheck:
@@ -44,8 +44,8 @@ services:
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/futurekawa
       SPRING_DATASOURCE_USERNAME: futurekawa
-      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
-      MQTT_HOST: ${MQTT_HOST}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD:-futurekawa_pwd}
+      MQTT_BROKER: ${MQTT_BROKER:-tcp://localhost:1883}
       APP_COUNTRY: ${APP_COUNTRY:-production}
     depends_on:
       db:
