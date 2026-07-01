@@ -558,6 +558,29 @@
           <label class="wide-field">Composition lots (soit lotId:quantite, soit lotReference:quantite ; séparés par virgule ou nouvelle ligne)
             <textarea rows="3" [(ngModel)]="expeditionForm.lotsText" placeholder="1:120, BR-24-0099:80"></textarea>
           </label>
+
+          <div class="wide-field expedition-lot-builder">
+            <label>Ajouter un lot à l'expédition
+              <select [(ngModel)]="expeditionLotPicker.lotIdentifier">
+                <option value="">Sélectionner un lot...</option>
+                <option *ngFor="let choice of expeditionLotChoices" [value]="choice.value">{{ choice.label }}</option>
+              </select>
+            </label>
+            <label>Quantité
+              <input type="number" min="1" [(ngModel)]="expeditionLotPicker.quantite" placeholder="80" />
+            </label>
+            <button type="button" class="ghost-button" (click)="addLotToExpeditionForm()">Ajouter au contenu</button>
+          </div>
+        </div>
+
+        <div class="measure-table expedition-lots-preview" *ngIf="expeditionFormLotsPreview.length">
+          <header><span>Lot</span><span>Lot ID</span><span>Quantité</span><span>Action</span></header>
+          <div *ngFor="let lot of expeditionFormLotsPreview; let i = index">
+            <span>{{ lot.lotReference }}</span>
+            <span>{{ lot.lotId }}</span>
+            <span>{{ lot.quantiteExpediee }}</span>
+            <span><button type="button" class="ghost-button danger" (click)="removeLotFromExpeditionForm(i)">Retirer</button></span>
+          </div>
         </div>
 
         <div class="lot-actions expedition-actions">
@@ -676,6 +699,29 @@
                 <label class="wide-field">Composition lots
                   <textarea rows="3" [(ngModel)]="expeditionInlineForm.lotsText"></textarea>
                 </label>
+
+                <div class="wide-field expedition-lot-builder">
+                  <label>Ajouter un lot
+                    <select [(ngModel)]="expeditionInlineLotPicker.lotIdentifier">
+                      <option value="">Sélectionner un lot...</option>
+                      <option *ngFor="let choice of expeditionLotChoices" [value]="choice.value">{{ choice.label }}</option>
+                    </select>
+                  </label>
+                  <label>Quantité
+                    <input type="number" min="1" [(ngModel)]="expeditionInlineLotPicker.quantite" />
+                  </label>
+                  <button type="button" class="ghost-button" (click)="addLotToInlineExpeditionForm()">Ajouter</button>
+                </div>
+              </div>
+
+              <div class="measure-table expedition-lots-preview" *ngIf="expeditionInlineLotsPreview.length">
+                <header><span>Lot</span><span>Lot ID</span><span>Quantité</span><span>Action</span></header>
+                <div *ngFor="let lot of expeditionInlineLotsPreview; let i = index">
+                  <span>{{ lot.lotReference }}</span>
+                  <span>{{ lot.lotId }}</span>
+                  <span>{{ lot.quantiteExpediee }}</span>
+                  <span><button type="button" class="ghost-button danger" (click)="removeLotFromInlineExpeditionForm(i)">Retirer</button></span>
+                </div>
               </div>
 
               <div class="inline-actions">

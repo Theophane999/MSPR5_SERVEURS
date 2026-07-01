@@ -25,6 +25,12 @@ type ExpeditionFormState = {
   lotsText: string;
 };
 
+type ExpeditionLotPreview = {
+  lotId: number;
+  lotReference: string;
+  quantiteExpediee: number;
+};
+
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -90,6 +96,8 @@ export class AppComponent implements OnInit, OnDestroy {
 
   protected expeditionForm: ExpeditionFormState = this.emptyExpeditionForm();
   protected expeditionInlineForm: ExpeditionFormState = this.emptyExpeditionForm();
+  protected expeditionLotPicker = { lotIdentifier: '', quantite: null as number | null };
+  protected expeditionInlineLotPicker = { lotIdentifier: '', quantite: null as number | null };
 
   ngOnInit(): void {
     this.refresh();
@@ -282,6 +290,54 @@ export class AppComponent implements OnInit, OnDestroy {
     event?.stopPropagation();
     this.expeditionInlineEditId = undefined;
     this.expeditionInlineForm = this.emptyExpeditionForm();
+    this.expeditionInlineLotPicker = { lotIdentifier: '', quantite: null };
+  }
+
+  protected get expeditionLotChoices(): { value: string; label: string }[] {
+    return this.selectedCountryLots.map((lot) => ({
+      value: String(lot.id),
+      label: `${lot.lotReference || `Lot ${lot.id}`} (ID ${lot.id})`,
+    }));
+  }
+
+  protected get expeditionFormLotsPreview(): ExpeditionLotPreview[] {
+    return this.buildExpeditionLotsPreview(this.expeditionForm);
+  }
+
+  protected get expeditionInlineLotsPreview(): ExpeditionLotPreview[] {
+    return this.buildExpeditionLotsPreview(this.expeditionInlineForm);
+  }
+
+  protected addLotToExpeditionForm(): void {
+    const ok = this.appendLotToForm(
+      this.expeditionForm,
+      this.expeditionLotPicker.lotIdentifier,
+      this.expeditionLotPicker.quantite,
+    );
+
+    if (ok) {
+      this.expeditionLotPicker = { lotIdentifier: '', quantite: null };
+    }
+  }
+
+  protected addLotToInlineExpeditionForm(): void {
+    const ok = this.appendLotToForm(
+      this.expeditionInlineForm,
+      this.expeditionInlineLotPicker.lotIdentifier,
+      this.expeditionInlineLotPicker.quantite,
+    );
+
+    if (ok) {
+      this.expeditionInlineLotPicker = { lotIdentifier: '', quantite: null };
+    }
+  }
+
+  protected removeLotFromExpeditionForm(index: number): void {
+    this.removeLotFromForm(this.expeditionForm, index);
+  }
+
+  protected removeLotFromInlineExpeditionForm(index: number): void {
+    this.removeLotFromForm(this.expeditionInlineForm, index);
   }
 
   protected saveInlineExpeditionEdit(expedition: ExpeditionView, event?: MouseEvent): void {
@@ -756,6 +812,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   protected resetExpeditionForm(): void {
     this.expeditionForm = this.emptyExpeditionForm();
+    this.expeditionLotPicker = { lotIdentifier: '', quantite: null };
   }
 
   protected createExpedition(): void {
@@ -963,6 +1020,49 @@ export class AppComponent implements OnInit, OnDestroy {
       statut: form.statut,
       lots: this.parseExpeditionLots(form.lotsText),
     };
+  }
+
+  private buildExpeditionLotsPreview(form: ExpeditionFormState): ExpeditionLotPreview[] {
+    const availableLots = this.selectedCountryLots;
+
+    return this.parseExpeditionLots(form.lotsText).map((item) => {
+      const found = availableLots.find((lot) => Number(lot.id) === item.lotId);
+      return {
+        lotId: item.lotId,
+        lotReference: found?.lotReference || `Lot ${item.lotId}`,
+        quantiteExpediee: item.quantiteExpediee,
+      };
+    });
+  }
+
+  private appendLotToForm(form: ExpeditionFormState, lotIdentifier: string, quantite: number | null): boolean {
+    const identifier = lotIdentifier?.trim() ?? '';
+    const qty = quantite ?? 0;
+
+    if (!identifier) {
+      this.lotActionError = 'Choisis un lot pour l\'ajouter a l\'expedition';
+      return false;
+    }
+
+    if (!Number.isFinite(qty) || qty <= 0) {
+      this.lotActionError = 'La quantite du lot doit etre superieure a 0';
+      return false;
+    }
+
+    const segment = `${identifier}:${qty}`;
+    form.lotsText = form.lotsText?.trim() ? `${form.lotsText.trim()}, ${segment}` : segment;
+    this.lotActionError = undefined;
+    return true;
+  }
+
+  private removeLotFromForm(form: ExpeditionFormState, index: number): void {
+    const parsed = this.parseExpeditionLots(form.lotsText);
+    if (index < 0 || index >= parsed.length) {
+      return;
+    }
+
+    parsed.splice(index, 1);
+    form.lotsText = parsed.map((lot) => `${lot.lotId}:${lot.quantiteExpediee}`).join(', ');
   }
 
   private validateExpeditionPayload(payload: ExpeditionUpsertPayload): string | undefined {
