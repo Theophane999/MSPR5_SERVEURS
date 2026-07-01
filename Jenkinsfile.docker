@@ -217,6 +217,9 @@ pipeline {
           ]) {
             for (host in deployHosts) {
               echo "Deploying to ${host}"
+              def isMotherHost = host == params.PROD_HOST_MOTHER?.trim()
+              def composeProfile = isMotherHost ? 'mother' : 'child'
+              def appChildrenServices = "brazil=http://${params.PROD_HOST_BRAZIL?.trim()}:3000,ecuador=http://${params.PROD_HOST_ECUADOR?.trim()}:3000,colombia=http://${params.PROD_HOST_COLOMBIA?.trim()}:3000"
               sh """
                 ssh -o StrictHostKeyChecking=no -i \$SSH_KEY_FILE \$SSH_USER@${host} <<'REMOTE'
 set -e
@@ -243,7 +246,10 @@ else
 fi
 
 \$COMPOSE_CMD version
-DEPLOY_TAG=prod \$COMPOSE_CMD -f docker-compose.prod.yml up -d --build --remove-orphans
+export COMPOSE_PROFILES=${composeProfile}
+export DEPLOY_TAG=prod
+${isMotherHost ? "export APP_CHILDREN='${appChildrenServices}'" : ''}
+\$COMPOSE_CMD -f docker-compose.prod.yml up -d --build --remove-orphans
 REMOTE
               """
             }

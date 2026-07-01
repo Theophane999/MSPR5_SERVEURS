@@ -13,6 +13,7 @@ services:
 
   # ── Base de données ────────────────────────────────────────────────
   db:
+    profiles: ["child"]
     image: postgres:16-alpine
     restart: always
     environment:
@@ -36,6 +37,7 @@ services:
 
   # ── Backend Child (à déployer sur chaque serveur pays séparément) ──
   backend-child:
+    profiles: ["child"]
     build:
       context: ./services/backend-child
       dockerfile: Dockerfile
@@ -60,6 +62,7 @@ services:
 
   # ── Backend Mother ─────────────────────────────────────────────────
   backend-mother:
+    profiles: ["mother"]
     build:
       context: ./services/backend-mother
       dockerfile: Dockerfile
@@ -71,8 +74,6 @@ services:
       APP_ALERT_THRESHOLD_TEMP_MAX: ${ALERT_TEMP_MAX:-30}
       APP_ALERT_THRESHOLD_HUMIDITE_MIN: ${ALERT_HUM_MIN:-45}
       APP_ALERT_THRESHOLD_HUMIDITE_MAX: ${ALERT_HUM_MAX:-75}
-    depends_on:
-      - backend-child
     ports:
       - "3200:3000"
     networks:
@@ -85,6 +86,7 @@ services:
 
   # ── Frontend ───────────────────────────────────────────────────────
   frontend:
+    profiles: ["mother"]
     build:
       context: ./services/frontend
       dockerfile: Dockerfile
@@ -106,6 +108,7 @@ services:
         max-file: "10"
 
   prometheus:
+    profiles: ["mother"]
     image: prom/prometheus:v2.55.1
     restart: always
     command:
@@ -116,13 +119,11 @@ services:
       - prometheus-data:/prometheus
     ports:
       - "9090:9090"
-    depends_on:
-      - backend-mother
-      - backend-child
     networks:
       - futurekawa-net
 
   grafana:
+    profiles: ["mother"]
     image: grafana/grafana-oss:11.1.4
     restart: always
     environment:
