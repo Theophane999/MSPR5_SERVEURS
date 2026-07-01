@@ -5,8 +5,11 @@ import { DashboardResponse } from '../models/dashboard.model';
 const FALLBACK_URL = '/api';
 const CHILD_PUBLIC_PORTS: Record<string, number> = {
   'backend-brazil': 3101,
+  'backend-child-brazil': 3101,
   'backend-ecuador': 3102,
+  'backend-child-ecuador': 3102,
   'backend-colombia': 3103,
+  'backend-child-colombia': 3103,
 };
 
 export interface LotUpsertPayload {
@@ -55,11 +58,11 @@ export class DashboardService {
       const parsedUrl = new URL(sanitizedUrl);
       const mappedPort = CHILD_PUBLIC_PORTS[parsedUrl.hostname];
 
-      if (!mappedPort) {
-        return sanitizedUrl;
+      if (mappedPort) {
+        return `${parsedUrl.protocol}//localhost:${mappedPort}`;
       }
 
-      return `${parsedUrl.protocol}//localhost:${mappedPort}`;
+      return parsedUrl.origin;
     } catch {
       return sanitizedUrl;
     }
