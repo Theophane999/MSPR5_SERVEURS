@@ -1,9 +1,12 @@
 import { DatePipe, DecimalPipe, NgClass, NgFor, NgIf } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { AlertView, ChildStatus, DashboardResponse, ExpeditionView, HistoryPoint, LotView } from './models/dashboard.model';
 import { DashboardService } from './services/dashboard.service';
 import { TemperatureChartComponent } from './components/temperature-chart.component';
+import { filterLots, filterExpeditions, LotFilter, ExpeditionFilter } from './utils/filters';
+import { ThemeService } from './services/theme.service';
 
 export type DetailTab = 'sensors' | 'stocks' | 'expeditions' | 'alerts';
 export type UserMode = 'terrain' | 'siege';
@@ -11,12 +14,13 @@ export type UserMode = 'terrain' | 'siege';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [NgFor, NgIf, NgClass, DatePipe, DecimalPipe, TemperatureChartComponent],
+  imports: [NgFor, NgIf, NgClass, DatePipe, DecimalPipe, TemperatureChartComponent, FormsModule],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
 export class AppComponent implements OnInit, OnDestroy {
   private readonly dashboardService = inject(DashboardService);
+  private readonly themeService = inject(ThemeService);
   private refreshTimer?: ReturnType<typeof setInterval>;
   private countdownTimer?: ReturnType<typeof setInterval>;
 
@@ -35,6 +39,9 @@ export class AppComponent implements OnInit, OnDestroy {
   protected nextRefreshIn = 300;
   protected userMode: UserMode = 'terrain';
   protected showAlertBanner = true;
+  // Filters
+  protected stockFilter: LotFilter = { status: 'all', query: '', fromDate: '', toDate: '' };
+  protected expeditionFilter: ExpeditionFilter = { status: 'all', query: '', fromDate: '', toDate: '' };
 
   ngOnInit(): void {
     this.refresh();
@@ -42,6 +49,8 @@ export class AppComponent implements OnInit, OnDestroy {
     this.countdownTimer = setInterval(() => {
       this.nextRefreshIn = this.nextRefreshIn > 0 ? this.nextRefreshIn - 1 : this.refreshIntervalSeconds;
     }, 1000);
+    // ensure theme applied from service
+    this.themeService.current();
   }
 
   ngOnDestroy(): void {
@@ -180,6 +189,10 @@ export class AppComponent implements OnInit, OnDestroy {
     return [...(this.selectedCountry?.lots ?? [])].sort((a, b) => b.storageDate.localeCompare(a.storageDate));
   }
 
+  protected get filteredCountryLots(): LotView[] {
+    return filterLots(this.selectedCountryLots, this.stockFilter);
+  }
+
   protected get selectedLot(): LotView | undefined {
     const lots = this.selectedCountryLots;
     if (!lots.length) {
@@ -199,6 +212,10 @@ export class AppComponent implements OnInit, OnDestroy {
 
   protected get selectedCountryExpeditions(): ExpeditionView[] {
     return [...(this.selectedCountry?.expeditions ?? [])].sort((a, b) => b.departAt.localeCompare(a.departAt));
+  }
+
+  protected get filteredCountryExpeditions(): ExpeditionView[] {
+    return filterExpeditions(this.selectedCountryExpeditions, this.expeditionFilter);
   }
 
   protected get selectedCountryStockState() {

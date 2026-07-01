@@ -338,10 +338,29 @@
         </div>
       </div>
 
-      <div class="lots-split" *ngIf="selectedCountryLots.length; else noLot">
+      <div class="lots-split" *ngIf="filteredCountryLots.length; else noLot">
+        <div class="lots-filter">
+          <label>Statut:
+            <select [(ngModel)]="stockFilter.status">
+              <option value="all">Tous</option>
+              <option value="ok">Nominal</option>
+              <option value="warning">Vigilance</option>
+              <option value="critical">Critique</option>
+            </select>
+          </label>
+          <label>Recherche:
+            <input type="text" [(ngModel)]="stockFilter.query" placeholder="variété ou id" />
+          </label>
+          <label>Depuis:
+            <input type="date" [(ngModel)]="stockFilter.fromDate" />
+          </label>
+          <label>Jusqu'à:
+            <input type="date" [(ngModel)]="stockFilter.toDate" />
+          </label>
+        </div>
         <div class="lots-list">
           <button type="button" class="lot-row"
-            *ngFor="let lot of selectedCountryLots"
+            *ngFor="let lot of filteredCountryLots"
             [class.active]="selectedLot?.id === lot.id"
             [ngClass]="'status-' + lot.status"
             (click)="selectLot(lot.id)">
@@ -379,8 +398,27 @@
 
     <!-- TAB : EXPEDITIONS -->
     <div class="tab-panel" *ngIf="activeTab === 'expeditions'">
-      <div class="expeditions" *ngIf="selectedCountryExpeditions.length; else noExpeditions">
-        <article *ngFor="let expedition of selectedCountryExpeditions" class="expedition-card"
+      <div class="expeditions" *ngIf="filteredCountryExpeditions.length; else noExpeditions">
+        <div class="expeditions-filter">
+          <label>Statut:
+            <select [(ngModel)]="expeditionFilter.status">
+              <option value="all">Tous</option>
+              <option value="en_transit">En transit</option>
+              <option value="livree">Livrée</option>
+              <option value="annulee">Annulée</option>
+            </select>
+          </label>
+          <label>Recherche:
+            <input type="text" [(ngModel)]="expeditionFilter.query" placeholder="client ou destination" />
+          </label>
+          <label>Depuis:
+            <input type="date" [(ngModel)]="expeditionFilter.fromDate" />
+          </label>
+          <label>Jusqu'à:
+            <input type="date" [(ngModel)]="expeditionFilter.toDate" />
+          </label>
+        </div>
+        <article *ngFor="let expedition of filteredCountryExpeditions" class="expedition-card"
           [ngClass]="expeditionStatusClass(expedition.statut)">
           <header>
             <div>
