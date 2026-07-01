@@ -4,10 +4,24 @@ pipeline {
   options {
     timestamps()
     disableConcurrentBuilds()
+    skipDefaultCheckout(true)
   }
 
   triggers {
     githubPush()
+    pollSCM('H/3 * * * *')
+  }
+
+  parameters {
+    string(name: 'PROD_FRONTEND_URL', defaultValue: 'http://app.future-kawa.online', description: 'Frontend URL used by post-deploy smoke tests')
+    string(name: 'PROD_MOTHER_API_URL', defaultValue: 'http://api.future-kawa.online:3200/api/children', description: 'Mother API URL used by post-deploy smoke tests')
+    string(name: 'PROD_CHILD_HEALTH_BRAZIL', defaultValue: 'http://brazil.future-kawa.online:3000/health', description: 'Brazil child health URL used by post-deploy smoke tests')
+    string(name: 'PROD_CHILD_HEALTH_COLOMBIA', defaultValue: 'http://colombia.future-kawa.online:3000/health', description: 'Colombia child health URL used by post-deploy smoke tests')
+    string(name: 'PROD_CHILD_HEALTH_ECUADOR', defaultValue: 'http://ecuador.future-kawa.online:3000/health', description: 'Ecuador child health URL used by post-deploy smoke tests')
+  }
+
+  environment {
+    IMAGE_TAG        = 'ci'
   }
 
   stages {
@@ -15,120 +29,201 @@ pipeline {
       agent any
       steps {
         checkout scm
+        sh 'git sparse-checkout disable || true'
+        stash name: 'workspace-src', includes: '**/*', useDefaultExcludes: false
       }
     }
 
     stage('Backend Tests') {
       parallel {
         stage('backend-child') {
-          agent {
-            docker {
-              image 'gradle:8.10.2-jdk21'
-              args '-u root:root'
-              reuseNode true
-            }
-          }
+          agent any
           steps {
-            dir('services/backend-child') {
-              sh 'gradle --no-daemon test'
-            }
+            unstash 'workspace-src'
+            sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/services/backend-child" gradle:8.10.2-jdk21 gradle --no-daemon test'
           }
         }
 
         stage('backend-mother') {
-          agent {
-            docker {
-              image 'gradle:8.10.2-jdk21'
-              args '-u root:root'
-              reuseNode true
-            }
-          }
+          agent any
           steps {
-            dir('services/backend-mother') {
-              sh 'gradle --no-daemon test'
-            }
+            unstash 'workspace-src'
+            sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/services/backend-mother" gradle:8.10.2-jdk21 gradle --no-daemon test'
           }
         }
       }
     }
 
     stage('Frontend Unit Tests') {
-      agent {
-        docker {
-          image 'mcr.microsoft.com/playwright:v1.54.0-jammy'
-          args '-u root:root'
-          reuseNode true
-        }
-      }
+      agent any
       steps {
-        dir('services/frontend') {
-          sh 'npm ci'
-          sh 'CHROME_BIN=$(find /ms-playwright -name chrome -type f | head -n 1); if [ -z "$CHROME_BIN" ]; then echo "Chrome binary not found"; exit 1; fi; export CHROME_BIN; npx ng test --watch=false --browsers=ChromeHeadlessNoSandbox --progress=false'
-        }
+        unstash 'workspace-src'
+        sh '''
+          docker run --rm --volumes-from jenkins -w "$WORKSPACE/services/frontend" mcr.microsoft.com/playwright:v1.54.0-jammy /bin/bash -lc 'npm ci && CHROME_BIN=$(which google-chrome-stable || which google-chrome || which chromium || which chromium-browser || true); if [ -z "$CHROME_BIN" ]; then CHROME_BIN=$(find /ms-playwright -type f 2>/dev/null | grep -E "/(chrome|chromium)$" | head -n 1); fi; if [ -z "$CHROME_BIN" ]; then echo Chrome/Chromium binary not found; exit 1; fi; export CHROME_BIN; npx ng test --watch=false --browsers=ChromeHeadlessNoSandbox --progress=false'
+        '''
       }
     }
 
     stage('Frontend Build') {
-      agent {
-        docker {
-          image 'node:20'
-          args '-u root:root'
-          reuseNode true
-        }
-      }
+      agent any
       steps {
-        dir('services/frontend') {
-          sh 'npm ci'
-          sh 'npm run build'
-        }
+        unstash 'workspace-src'
+        sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/services/frontend" node:20 /bin/bash -lc "npm ci && npm run build"'
       }
     }
 
     stage('Terraform Validate') {
-      agent {
-        docker {
-          image 'hashicorp/terraform:1.8.5'
-          args '-u root:root'
-          reuseNode true
+      agent any
+      steps {
+        unstash 'workspace-src'
+        sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/terraform" hashicorp/terraform:1.8.5 init -backend=false'
+        sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/terraform" hashicorp/terraform:1.8.5 fmt -check'
+        sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/terraform" hashicorp/terraform:1.8.5 validate'
+      }
+    }
+
+    stage('Docker Build & Tag') {
+      agent any
+      when {
+        anyOf {
+          branch 'pre-prod'
+          branch 'main'
         }
       }
       steps {
-        dir('terraform') {
-          sh 'terraform init -backend=false'
-          sh 'terraform fmt -check'
-          sh 'terraform validate'
+        unstash 'workspace-src'
+        script {
+          def isBranchPreprod = env.BRANCH_NAME == 'pre-prod'
+          def isBranchProd    = env.BRANCH_NAME == 'main'
+          env.IMAGE_TAG = env.GIT_COMMIT ? env.GIT_COMMIT.take(8) : 'ci'
+          def tag = isBranchProd ? 'prod' : (isBranchPreprod ? 'preprod' : 'ci')
+
+          sh """
+            docker build -t futurekawa/backend-child:${tag} ./services/backend-child
+            docker build -t futurekawa/backend-mother:${tag} ./services/backend-mother
+            docker build -t futurekawa/frontend:${tag} ./services/frontend
+          """
+
+          if (isBranchProd) {
+            withCredentials([
+              string(credentialsId: 'docker-registry-url', variable: 'REGISTRY'),
+              usernamePassword(credentialsId: 'docker-registry-credentials', usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASS')
+            ]) {
+              sh """
+                echo "\$REGISTRY_PASS" | docker login "\$REGISTRY" -u "\$REGISTRY_USER" --password-stdin
+                docker push futurekawa/backend-child:${tag}
+                docker push futurekawa/backend-mother:${tag}
+                docker push futurekawa/frontend:${tag}
+              """
+              if (isBranchProd) {
+                sh """
+                  docker tag futurekawa/backend-child:prod futurekawa/backend-child:${env.IMAGE_TAG}
+                  docker tag futurekawa/backend-mother:prod futurekawa/backend-mother:${env.IMAGE_TAG}
+                  docker tag futurekawa/frontend:prod futurekawa/frontend:${env.IMAGE_TAG}
+                  docker push futurekawa/backend-child:${env.IMAGE_TAG}
+                  docker push futurekawa/backend-mother:${env.IMAGE_TAG}
+                  docker push futurekawa/frontend:${env.IMAGE_TAG}
+                """
+              }
+              sh 'docker logout "$REGISTRY" || true'
+            }
+          } else if (isBranchPreprod) {
+            echo 'Pre-prod: registry push skipped (local smoke only).'
+          }
         }
       }
     }
 
-    stage('Docker Build') {
+    stage('Smoke Pre-prod (Local)') {
       agent any
-      parallel {
-        stage('backend-child image') {
-          steps {
-            sh 'docker build -t futurekawa/backend-child:ci ./services/backend-child'
-          }
+      when {
+        branch 'pre-prod'
+      }
+      steps {
+        unstash 'workspace-src'
+        sh """
+          export CHILD_BRAZIL_HOST_PORT=13101
+          export CHILD_ECUADOR_HOST_PORT=13102
+          export CHILD_COLOMBIA_HOST_PORT=13103
+          export MOTHER_HOST_PORT=13200
+          export FRONTEND_HOST_PORT=18080
+          docker compose -f docker-compose.preprod.yml up -d --build
+          docker run --rm --network host --volumes-from jenkins -w "\$WORKSPACE" mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \\
+            pwsh -NoLogo -NoProfile -File ./scripts/smoke-preprod.ps1 \\
+            -FrontendUrl "http://localhost:18080" \\
+            -MotherApiUrl "http://localhost:13200/api/children" \\
+            -ChildHealthUrls "http://localhost:13101/health","http://localhost:13102/health","http://localhost:13103/health"
+        """
+      }
+      post {
+        always {
+          sh 'docker compose -f docker-compose.preprod.yml down -v || true'
         }
+      }
+    }
 
-        stage('backend-mother image') {
-          steps {
-            sh 'docker build -t futurekawa/backend-mother:ci ./services/backend-mother'
-          }
+    stage('Approval Prod') {
+      when {
+        branch 'main'
+      }
+      steps {
+        timeout(time: 30, unit: 'MINUTES') {
+          input message: "Deployer la version ${env.IMAGE_TAG} en PRODUCTION ?",
+                ok: 'Oui, deployer',
+                submitter: 'prod-approvers'
         }
+      }
+    }
 
-        stage('frontend image') {
-          steps {
-            sh 'docker build -t futurekawa/frontend:ci ./services/frontend'
-          }
-        }
+    stage('Deploy Prod') {
+      agent any
+      when {
+        branch 'main'
+      }
+      environment {
+        SSH_PROD  = credentials('ssh-prod-server')
+        PROD_HOST = credentials('prod-host')
+      }
+      steps {
+        sh """
+          ssh -o StrictHostKeyChecking=no -i \$SSH_PROD \$PROD_HOST \\
+            'cd /opt/futurekawa && \\
+             DEPLOY_TAG=prod docker compose -f docker-compose.prod.yml pull && \\
+             DEPLOY_TAG=prod docker compose -f docker-compose.prod.yml up -d --remove-orphans'
+        """
+      }
+    }
+
+    stage('Smoke Prod (Post-Deploy)') {
+      agent any
+      when {
+        branch 'main'
+      }
+      steps {
+        unstash 'workspace-src'
+        sh """
+          docker run --rm --network host --volumes-from jenkins -w "\$WORKSPACE" mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \\
+            pwsh -NoLogo -NoProfile -File ./scripts/smoke-preprod.ps1 \\
+            -FrontendUrl \"${params.PROD_FRONTEND_URL}\" \\
+            -MotherApiUrl \"${params.PROD_MOTHER_API_URL}\" \\
+            -ChildHealthUrls \"${params.PROD_CHILD_HEALTH_BRAZIL}\",\"${params.PROD_CHILD_HEALTH_COLOMBIA}\",\"${params.PROD_CHILD_HEALTH_ECUADOR}\"
+        """
       }
     }
   }
 
   post {
     always {
-      junit allowEmptyResults: true, testResults: '**/build/test-results/test/*.xml'
-      archiveArtifacts allowEmptyArchive: true, artifacts: 'services/frontend/dist/**'
+      node('') {
+        junit allowEmptyResults: true, testResults: '**/build/test-results/test/*.xml'
+        archiveArtifacts allowEmptyArchive: true, artifacts: 'services/frontend/dist/**'
+      }
+    }
+    success {
+      echo "Pipeline reussi sur la branche ${env.BRANCH_NAME} — tag: ${env.IMAGE_TAG}"
+    }
+    failure {
+      echo "Pipeline en echec sur ${env.BRANCH_NAME} — verifier les logs"
     }
   }
 }
