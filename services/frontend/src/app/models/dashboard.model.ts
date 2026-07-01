@@ -16,6 +16,7 @@ export interface HistoryPoint {
 
 export interface LotView {
   id: string;
+  lotReference?: string | null;
   storageDate: string;
   status: 'ok' | 'warning' | 'critical';
   temperature: number | null;

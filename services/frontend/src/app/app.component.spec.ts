@@ -71,7 +71,7 @@ describe('AppComponent', () => {
     });
 
     const element = fixture.nativeElement as HTMLElement;
-    expect(element.textContent).toContain('mother down');
+    expect(element.textContent).toContain('Erreur de chargement : mother down');
     expect(element.querySelector('h1')?.textContent).toContain('Perte de visibilite');
   });
 

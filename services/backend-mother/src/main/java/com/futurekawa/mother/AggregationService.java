@@ -205,7 +205,8 @@ public class AggregationService {
         List<LotView> lots = new ArrayList<>();
         for (Map<String, Object> point : childLots) {
             lots.add(new LotView(
-                String.valueOf(point.getOrDefault("lotReference", point.getOrDefault("id", "lot-unknown"))),
+                String.valueOf(point.getOrDefault("id", "lot-unknown")),
+                valueAsString(point.get("lotReference")),
                 String.valueOf(point.getOrDefault("storageDate", "")),
                 status,
                 latestTemp,
@@ -229,6 +230,7 @@ public class AggregationService {
             String status = computeStatus(asDouble(point.get("temperature")).orElse(null), asDouble(point.get("humidite")).orElse(null));
             lots.add(new LotView(
                 String.valueOf(point.getOrDefault("id", "lot-unknown")),
+                null,
                 String.valueOf(point.getOrDefault("date", "")),
                 status,
                 asDouble(point.get("temperature")).orElse(null),
@@ -322,13 +324,17 @@ public class AggregationService {
 
         for (LotView lot : lots.stream().limit(5).toList()) {
             if ("critical".equals(lot.status())) {
-                alerts.add(new AlertView("critical", "Lot " + lot.id() + " hors seuil critique", Instant.now().toString()));
+                alerts.add(new AlertView("critical", "Lot " + lotLabel(lot) + " hors seuil critique", Instant.now().toString()));
             } else if ("warning".equals(lot.status())) {
-                alerts.add(new AlertView("warning", "Lot " + lot.id() + " hors seuil de vigilance", Instant.now().toString()));
+                alerts.add(new AlertView("warning", "Lot " + lotLabel(lot) + " hors seuil de vigilance", Instant.now().toString()));
             }
         }
 
         return alerts;
+    }
+
+    private String lotLabel(LotView lot) {
+        return lot.lotReference() != null && !lot.lotReference().isBlank() ? lot.lotReference() : lot.id();
     }
 
     private String computeStatus(Double temperature, Double humidite) {
@@ -437,6 +443,7 @@ public class AggregationService {
 
     public record LotView(
         String id,
+        String lotReference,
         String storageDate,
         String status,
         Double temperature,

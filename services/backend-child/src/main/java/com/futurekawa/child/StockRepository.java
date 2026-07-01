@@ -1,16 +1,26 @@
 package com.futurekawa.child;
 
 import java.sql.Timestamp;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.math.BigDecimal;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class StockRepository {
+
+    private static final String LOTS_SELECT =
+        "SELECT l.\"ID_LOT\" AS id, l.\"ID_chargement\" AS id_chargement, l.\"ID_exploitation\" AS id_exploitation, " +
+            "l.\"lot_reference\" AS lot_reference, c.\"datetime\" AS storage_date, " +
+            "l.\"date_peremption\" AS date_peremption, l.\"variete\" AS variete, l.\"process\" AS process, " +
+            "l.\"score_sca\" AS score_sca, l.\"poids_kg\" AS poids_kg, l.\"qualite\" AS qualite, l.\"quantite\" AS quantite " +
+            "FROM \"lot\" l " +
+            "LEFT JOIN \"chargement\" c ON c.\"ID_chargement\" = l.\"ID_chargement\" ";
 
     private final JdbcTemplate jdbc;
 
@@ -20,27 +30,94 @@ public class StockRepository {
 
     public List<Map<String, Object>> findLotsByEntrepot(int idEntrepot) {
         return jdbc.query(
-            "SELECT l.\"ID_LOT\" AS id, l.\"lot_reference\" AS lot_reference, c.\"datetime\" AS storage_date, " +
-                "l.\"date_peremption\" AS date_peremption, l.\"variete\" AS variete, l.\"process\" AS process, " +
-                "l.\"score_sca\" AS score_sca, l.\"poids_kg\" AS poids_kg, l.\"qualite\" AS qualite, l.\"quantite\" AS quantite " +
-                "FROM \"lot\" l " +
-                "LEFT JOIN \"chargement\" c ON c.\"ID_chargement\" = l.\"ID_chargement\" " +
+            LOTS_SELECT +
                 "WHERE l.\"ID_ENTREPOT\" = ? " +
                 "ORDER BY c.\"datetime\" DESC NULLS LAST, l.\"ID_LOT\" DESC",
-            (rs, rowNum) -> {
-                Map<String, Object> row = new LinkedHashMap<>();
-                row.put("id", rs.getLong("id"));
-                row.put("lotReference", rs.getString("lot_reference"));
-                row.put("storageDate", rs.getDate("storage_date") != null ? rs.getDate("storage_date").toString() : "");
-                row.put("datePeremption", rs.getInt("date_peremption"));
-                row.put("variete", rs.getString("variete"));
-                row.put("process", rs.getString("process"));
-                row.put("scoreSca", toDouble(rs.getBigDecimal("score_sca")));
-                row.put("poidsKg", toDouble(rs.getBigDecimal("poids_kg")));
-                row.put("qualite", rs.getString("qualite"));
-                row.put("quantite", rs.getInt("quantite"));
-                return row;
-            },
+            (rs, rowNum) -> mapLotRow(rs),
+            idEntrepot
+        );
+    }
+
+    public Optional<Map<String, Object>> findLotByIdAndEntrepot(long lotId, int idEntrepot) {
+        List<Map<String, Object>> rows = jdbc.query(
+            LOTS_SELECT + "WHERE l.\"ID_LOT\" = ? AND l.\"ID_ENTREPOT\" = ?",
+            (rs, rowNum) -> mapLotRow(rs),
+            lotId,
+            idEntrepot
+        );
+
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+
+        return Optional.of(rows.get(0));
+    }
+
+    public Map<String, Object> createLot(int idEntrepot, LotPayload payload) {
+        LocalDate storageDate = parseStorageDate(payload.storageDate());
+        Integer chargementId = jdbc.queryForObject(
+            "INSERT INTO \"chargement\" (\"datetime\") VALUES (?) RETURNING \"ID_chargement\"",
+            Integer.class,
+            storageDate
+        );
+
+        Integer lotId = jdbc.queryForObject(
+            "INSERT INTO \"lot\" (\"ID_ENTREPOT\", \"ID_exploitation\", \"ID_chargement\", \"lot_reference\", \"date_peremption\", \"variete\", \"process\", \"score_sca\", \"poids_kg\", \"qualite\", \"quantite\") " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING \"ID_LOT\"",
+            Integer.class,
+            idEntrepot,
+            payload.idExploitation(),
+            chargementId,
+            payload.lotReference(),
+            payload.datePeremption(),
+            payload.variete(),
+            payload.process(),
+            payload.scoreSca(),
+            payload.poidsKg(),
+            payload.qualite(),
+            payload.quantite()
+        );
+
+        return findLotByIdAndEntrepot(lotId, idEntrepot).orElseThrow();
+    }
+
+    public void updateLot(long lotId, int idEntrepot, LotPayload payload) {
+        Map<String, Object> existing = findLotByIdAndEntrepot(lotId, idEntrepot).orElseThrow();
+        int currentChargementId = asInt(existing.get("idChargement"), 0);
+        int nextChargementId = currentChargementId;
+
+        if (payload.storageDate() != null && !payload.storageDate().isBlank()) {
+            LocalDate storageDate = parseStorageDate(payload.storageDate());
+            Integer createdChargement = jdbc.queryForObject(
+                "INSERT INTO \"chargement\" (\"datetime\") VALUES (?) RETURNING \"ID_chargement\"",
+                Integer.class,
+                storageDate
+            );
+            nextChargementId = createdChargement != null ? createdChargement : currentChargementId;
+        }
+
+        jdbc.update(
+            "UPDATE \"lot\" SET \"ID_exploitation\" = ?, \"ID_chargement\" = ?, \"lot_reference\" = ?, \"date_peremption\" = ?, \"variete\" = ?, \"process\" = ?, \"score_sca\" = ?, \"poids_kg\" = ?, \"qualite\" = ?, \"quantite\" = ? " +
+                "WHERE \"ID_LOT\" = ? AND \"ID_ENTREPOT\" = ?",
+            payload.idExploitation() != null ? payload.idExploitation() : asNullableInt(existing.get("idExploitation")),
+            nextChargementId,
+            payload.lotReference() != null ? payload.lotReference() : asString(existing.get("lotReference")),
+            payload.datePeremption() != null ? payload.datePeremption() : asInt(existing.get("datePeremption"), 0),
+            payload.variete() != null ? payload.variete() : asString(existing.get("variete")),
+            payload.process() != null ? payload.process() : asString(existing.get("process")),
+            payload.scoreSca() != null ? payload.scoreSca() : asNullableDouble(existing.get("scoreSca")),
+            payload.poidsKg() != null ? payload.poidsKg() : asNullableDouble(existing.get("poidsKg")),
+            payload.qualite() != null ? payload.qualite() : asString(existing.get("qualite")),
+            payload.quantite() != null ? payload.quantite() : asInt(existing.get("quantite"), 0),
+            lotId,
+            idEntrepot
+        );
+    }
+
+    public void deleteLotByIdAndEntrepot(long lotId, int idEntrepot) {
+        jdbc.update(
+            "DELETE FROM \"lot\" WHERE \"ID_LOT\" = ? AND \"ID_ENTREPOT\" = ?",
+            lotId,
             idEntrepot
         );
     }
@@ -114,5 +191,76 @@ public class StockRepository {
 
     private Double toDouble(BigDecimal value) {
         return value != null ? value.doubleValue() : null;
+    }
+
+    private Map<String, Object> mapLotRow(java.sql.ResultSet rs) throws java.sql.SQLException {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("id", rs.getLong("id"));
+        row.put("idChargement", rs.getInt("id_chargement"));
+        int idExploitation = rs.getInt("id_exploitation");
+        row.put("idExploitation", rs.wasNull() ? null : idExploitation);
+        row.put("lotReference", rs.getString("lot_reference"));
+        row.put("storageDate", rs.getDate("storage_date") != null ? rs.getDate("storage_date").toString() : "");
+        row.put("datePeremption", rs.getInt("date_peremption"));
+        row.put("variete", rs.getString("variete"));
+        row.put("process", rs.getString("process"));
+        row.put("scoreSca", toDouble(rs.getBigDecimal("score_sca")));
+        row.put("poidsKg", toDouble(rs.getBigDecimal("poids_kg")));
+        row.put("qualite", rs.getString("qualite"));
+        row.put("quantite", rs.getInt("quantite"));
+        return row;
+    }
+
+    private LocalDate parseStorageDate(String rawDate) {
+        if (rawDate == null || rawDate.isBlank()) {
+            return LocalDate.now();
+        }
+        return LocalDate.parse(rawDate);
+    }
+
+    private int asInt(Object value, int fallback) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value == null) {
+            return fallback;
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (NumberFormatException exception) {
+            return fallback;
+        }
+    }
+
+    private Integer asNullableInt(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (NumberFormatException exception) {
+            return null;
+        }
+    }
+
+    private Double asNullableDouble(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        try {
+            return Double.parseDouble(String.valueOf(value));
+        } catch (NumberFormatException exception) {
+            return null;
+        }
+    }
+
+    private String asString(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 }
