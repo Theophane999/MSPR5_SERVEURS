@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { DashboardResponse } from '../models/dashboard.model';
 
-const FALLBACK_URL = 'http://localhost:3200';
+const FALLBACK_URL = '/api';
 const CHILD_PUBLIC_PORTS: Record<string, number> = {
   'backend-brazil': 3101,
   'backend-ecuador': 3102,
@@ -20,6 +20,27 @@ export interface LotUpsertPayload {
   quantite?: number;
   storageDate?: string;
   idExploitation?: number;
+}
+
+export interface ExpeditionLotUpsertPayload {
+  lotId?: number;
+  quantiteExpediee?: number;
+}
+
+export interface ExpeditionUpsertPayload {
+  departAt?: string;
+  arriveeEstimeeAt?: string;
+  destinationPays?: string;
+  destinationVille?: string;
+  destinationClient?: string;
+  poidsTotalKg?: number;
+  trackingTransporteur?: string;
+  quaiDepart?: string;
+  transporteur?: string;
+  livreurNom?: string;
+  livreurTelephone?: string;
+  statut?: string;
+  lots?: ExpeditionLotUpsertPayload[];
 }
 
 @Injectable({ providedIn: 'root' })
@@ -45,7 +66,11 @@ export class DashboardService {
   }
 
   loadDashboard() {
-    return this.http.get<DashboardResponse>(`${this.baseUrl}/api/children`);
+    return this.http.get<DashboardResponse>(this.dashboardUrl());
+  }
+
+  dashboardUrl() {
+    return this.baseUrl.endsWith('/api') ? `${this.baseUrl}/children` : `${this.baseUrl}/api/children`;
   }
 
   createLot(childBaseUrl: string, payload: LotUpsertPayload) {
@@ -58,6 +83,18 @@ export class DashboardService {
 
   deleteLot(childBaseUrl: string, lotId: string) {
     return this.http.delete(`${this.resolveChildBaseUrl(childBaseUrl)}/api/lots/${encodeURIComponent(lotId)}`);
+  }
+
+  createExpedition(childBaseUrl: string, payload: ExpeditionUpsertPayload) {
+    return this.http.post(`${this.resolveChildBaseUrl(childBaseUrl)}/api/expeditions`, payload);
+  }
+
+  updateExpedition(childBaseUrl: string, expeditionId: string, payload: ExpeditionUpsertPayload) {
+    return this.http.put(`${this.resolveChildBaseUrl(childBaseUrl)}/api/expeditions/${encodeURIComponent(expeditionId)}`, payload);
+  }
+
+  deleteExpedition(childBaseUrl: string, expeditionId: string) {
+    return this.http.delete(`${this.resolveChildBaseUrl(childBaseUrl)}/api/expeditions/${encodeURIComponent(expeditionId)}`);
   }
 
   motherUrl() {

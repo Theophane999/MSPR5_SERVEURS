@@ -155,7 +155,7 @@ Endpoints utiles pour la demo siege:
 Frontend demo:
 
 - Mode Docker/Nginx: http://localhost:8080
-- Mode dev Angular (hot reload): http://localhost:4300 via `./dev-start.ps1`
+- Mode dev Angular (hot reload): http://localhost:4300 via `./dev-start.ps1` (proxy `/api` activé vers le backend mère)
 - Prometheus: http://localhost:9090
 - Grafana: http://localhost:3001
 
@@ -165,6 +165,8 @@ Identifiants Grafana par défaut:
 - mot de passe: `admin`
 
 Grafana est pré-provisionné avec une source de données Prometheus. Tu peux y créer des dashboards et des règles d’alerting pour surveiller les métriques exposées par les backends via `/actuator/prometheus`.
+
+Dans le dashboard web, les onglets **Stocks** et **Expéditions** proposent aussi désormais un CRUD complet côté frontend, avec tri et recherche par champ métier.
 
 Un dashboard de base `FutureKawa Overview` est aussi provisionné automatiquement avec :
 

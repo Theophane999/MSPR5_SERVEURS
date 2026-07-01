@@ -3,11 +3,27 @@ import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { AlertView, ChildStatus, DashboardResponse, ExpeditionView, HistoryPoint, LotView } from './models/dashboard.model';
-import { DashboardService, LotUpsertPayload } from './services/dashboard.service';
+import { DashboardService, ExpeditionUpsertPayload, LotUpsertPayload } from './services/dashboard.service';
 import { filterExpeditions, filterLots } from './utils/filters';
 import type { ExpeditionFilter, LotFilter } from './utils/filters';
 
 export type DetailTab = 'sensors' | 'stocks' | 'expeditions' | 'alerts';
+
+type ExpeditionFormState = {
+  departAt: string;
+  arriveeEstimeeAt: string;
+  destinationPays: string;
+  destinationVille: string;
+  destinationClient: string;
+  poidsTotalKg: number | null;
+  trackingTransporteur: string;
+  quaiDepart: string;
+  transporteur: string;
+  livreurNom: string;
+  livreurTelephone: string;
+  statut: string;
+  lotsText: string;
+};
 
 @Component({
   selector: 'app-root',
@@ -28,12 +44,13 @@ export class AppComponent implements OnInit, OnDestroy {
   protected readonly refreshIntervalSeconds = 300;
 
   protected loading = true;
-  protected apiUrl = `${this.dashboardService.motherUrl()}/api/children`;
+  protected apiUrl = this.dashboardService.dashboardUrl();
   protected aggregatedAt?: string;
   protected children: ChildStatus[] = [];
   protected errorMessage?: string;
   protected selectedCountryName?: string;
   protected selectedLotId?: string;
+  protected selectedExpeditionId?: string;
   protected activeTab: DetailTab = 'sensors';
   protected nextRefreshIn = 300;
   protected lotActionMessage?: string;
@@ -54,6 +71,9 @@ export class AppComponent implements OnInit, OnDestroy {
     sortBy: 'departAt',
     sortOrder: 'desc',
   };
+  protected expeditionPageSize = 4;
+  protected expeditionPageIndex = 0;
+  protected expeditionInlineEditId?: string;
 
   protected lotForm: {
     lotReference: string;
@@ -67,6 +87,9 @@ export class AppComponent implements OnInit, OnDestroy {
     storageDate: string;
     idExploitation: number | null;
   } = this.emptyLotForm();
+
+  protected expeditionForm: ExpeditionFormState = this.emptyExpeditionForm();
+  protected expeditionInlineForm: ExpeditionFormState = this.emptyExpeditionForm();
 
   ngOnInit(): void {
     this.refresh();
@@ -176,6 +199,9 @@ export class AppComponent implements OnInit, OnDestroy {
   protected selectCountry(countryName: string): void {
     this.selectedCountryName = countryName;
     this.selectedLotId = this.selectedCountryLots[0]?.id;
+    this.selectedExpeditionId = this.selectedCountryExpeditions[0]?.id;
+    this.expeditionInlineEditId = undefined;
+    this.expeditionPageIndex = 0;
     this.activeTab = 'sensors';
   }
 
@@ -186,6 +212,89 @@ export class AppComponent implements OnInit, OnDestroy {
   protected selectLot(lotId: string): void {
     this.selectedLotId = lotId;
     this.fillFormFromSelectedLot();
+  }
+
+  protected selectExpedition(expeditionId: string): void {
+    this.selectedExpeditionId = expeditionId;
+    this.fillFormFromSelectedExpedition();
+  }
+
+  protected resetExpeditionPagination(): void {
+    this.expeditionPageIndex = 0;
+  }
+
+  protected previousExpeditionPage(): void {
+    this.expeditionPageIndex = Math.max(0, this.expeditionPageIndex - 1);
+  }
+
+  protected nextExpeditionPage(): void {
+    this.expeditionPageIndex = Math.min(this.expeditionTotalPages - 1, this.expeditionPageIndex + 1);
+  }
+
+  protected startInlineExpeditionEdit(expedition: ExpeditionView, event?: MouseEvent): void {
+    event?.stopPropagation();
+    this.selectedExpeditionId = expedition.id;
+    this.expeditionInlineEditId = expedition.id;
+    this.expeditionInlineForm = this.buildExpeditionFormFromView(expedition);
+  }
+
+  protected cancelInlineExpeditionEdit(event?: MouseEvent): void {
+    event?.stopPropagation();
+    this.expeditionInlineEditId = undefined;
+    this.expeditionInlineForm = this.emptyExpeditionForm();
+  }
+
+  protected saveInlineExpeditionEdit(expedition: ExpeditionView, event?: MouseEvent): void {
+    event?.stopPropagation();
+    const selected = this.selectedCountry;
+    if (!selected?.url) {
+      this.lotActionError = 'Aucun backend enfant selectionne';
+      return;
+    }
+
+    this.lotActionMessage = undefined;
+    this.lotActionError = undefined;
+
+    this.dashboardService.updateExpedition(selected.url, expedition.id, this.buildPayloadForExpedition(this.expeditionInlineForm)).subscribe({
+      next: () => {
+        this.lotActionMessage = 'Expedition mise a jour';
+        this.cancelInlineExpeditionEdit();
+        this.captureScrollPosition('.expedition-table-surface');
+        this.refresh();
+      },
+      error: (error: { message?: string }) => {
+        this.lotActionError = error.message ?? 'Echec mise a jour expedition';
+      },
+    });
+  }
+
+  protected deleteInlineExpedition(expedition: ExpeditionView, event?: MouseEvent): void {
+    event?.stopPropagation();
+    const selected = this.selectedCountry;
+    if (!selected?.url) {
+      this.lotActionError = 'Aucun backend enfant selectionne';
+      return;
+    }
+
+    this.lotActionMessage = undefined;
+    this.lotActionError = undefined;
+
+    this.dashboardService.deleteExpedition(selected.url, expedition.id).subscribe({
+      next: () => {
+        this.lotActionMessage = 'Expedition supprimee';
+        if (this.expeditionInlineEditId === expedition.id) {
+          this.cancelInlineExpeditionEdit();
+        }
+        if (this.selectedExpeditionId === expedition.id) {
+          this.selectedExpeditionId = undefined;
+        }
+        this.captureScrollPosition('.expedition-table-surface');
+        this.refresh();
+      },
+      error: (error: { message?: string }) => {
+        this.lotActionError = error.message ?? 'Echec suppression expedition';
+      },
+    });
   }
 
   protected resetStockFilters(): void {
@@ -208,6 +317,7 @@ export class AppComponent implements OnInit, OnDestroy {
       sortBy: 'departAt',
       sortOrder: 'desc',
     };
+    this.expeditionPageIndex = 0;
   }
 
   protected get selectedCountry(): ChildStatus | undefined {
@@ -256,8 +366,38 @@ export class AppComponent implements OnInit, OnDestroy {
     return [...(this.selectedCountry?.expeditions ?? [])].sort((a, b) => b.departAt.localeCompare(a.departAt));
   }
 
+  protected get selectedExpedition(): ExpeditionView | undefined {
+    const expeditions = this.selectedCountryExpeditions;
+    if (!expeditions.length) {
+      return undefined;
+    }
+
+    if (!this.selectedExpeditionId) {
+      return expeditions[0];
+    }
+
+    return expeditions.find((expedition) => expedition.id === this.selectedExpeditionId) ?? expeditions[0];
+  }
+
   protected get filteredSelectedCountryExpeditions(): ExpeditionView[] {
     return filterExpeditions(this.selectedCountryExpeditions, this.expeditionFilter);
+  }
+
+  protected get expeditionTotalPages(): number {
+    return Math.max(1, Math.ceil(this.filteredSelectedCountryExpeditions.length / this.expeditionPageSize));
+  }
+
+  protected get paginatedSelectedCountryExpeditions(): ExpeditionView[] {
+    const start = this.expeditionPageIndex * this.expeditionPageSize;
+    return this.filteredSelectedCountryExpeditions.slice(start, start + this.expeditionPageSize);
+  }
+
+  protected get expeditionPageStart(): number {
+    return this.filteredSelectedCountryExpeditions.length ? this.expeditionPageIndex * this.expeditionPageSize + 1 : 0;
+  }
+
+  protected get expeditionPageEnd(): number {
+    return Math.min((this.expeditionPageIndex + 1) * this.expeditionPageSize, this.filteredSelectedCountryExpeditions.length);
   }
 
   protected get selectedCountryStockState() {
@@ -426,6 +566,10 @@ export class AppComponent implements OnInit, OnDestroy {
     return lot.id;
   }
 
+  protected trackByExpeditionId(_index: number, expedition: ExpeditionView): string {
+    return expedition.id;
+  }
+
   protected get sensorActiveCount(): number {
     return this.children.filter(c => c.sensorData?.available).length;
   }
@@ -474,7 +618,15 @@ export class AppComponent implements OnInit, OnDestroy {
             this.selectedLotId = selectedLots[0]?.id;
           }
 
+          const selectedExpeditions = this.selectedCountryExpeditions;
+          const selectedExpeditionExists = selectedExpeditions.some((expedition) => expedition.id === this.selectedExpeditionId);
+          if (!selectedExpeditionExists) {
+            this.selectedExpeditionId = selectedExpeditions[0]?.id;
+          }
+
           this.fillFormFromSelectedLot();
+          this.fillFormFromSelectedExpedition();
+          this.expeditionPageIndex = Math.min(this.expeditionPageIndex, Math.max(0, this.expeditionTotalPages - 1));
           this.restoreScrollPosition();
         },
         error: (error: { message?: string }) => {
@@ -555,6 +707,77 @@ export class AppComponent implements OnInit, OnDestroy {
     this.lotForm = this.emptyLotForm();
   }
 
+  protected resetExpeditionForm(): void {
+    this.expeditionForm = this.emptyExpeditionForm();
+  }
+
+  protected createExpedition(): void {
+    const selected = this.selectedCountry;
+    if (!selected?.url) {
+      this.lotActionError = 'Aucun backend enfant selectionne';
+      return;
+    }
+
+    this.lotActionMessage = undefined;
+    this.lotActionError = undefined;
+
+    this.dashboardService.createExpedition(selected.url, this.buildPayloadForExpedition()).subscribe({
+      next: () => {
+        this.lotActionMessage = 'Expedition ajoutee avec succes';
+        this.captureScrollPosition('.expedition-crud');
+        this.refresh();
+      },
+      error: (error: { message?: string }) => {
+        this.lotActionError = error.message ?? 'Echec ajout expedition';
+      },
+    });
+  }
+
+  protected updateSelectedExpedition(): void {
+    const selected = this.selectedCountry;
+    if (!selected?.url || !this.selectedExpeditionId) {
+      this.lotActionError = 'Aucune expedition selectionnee';
+      return;
+    }
+
+    this.lotActionMessage = undefined;
+    this.lotActionError = undefined;
+
+    this.dashboardService.updateExpedition(selected.url, this.selectedExpeditionId, this.buildPayloadForExpedition()).subscribe({
+      next: () => {
+        this.lotActionMessage = 'Expedition mise a jour';
+        this.captureScrollPosition('.expedition-crud');
+        this.refresh();
+      },
+      error: (error: { message?: string }) => {
+        this.lotActionError = error.message ?? 'Echec mise a jour expedition';
+      },
+    });
+  }
+
+  protected deleteSelectedExpedition(): void {
+    const selected = this.selectedCountry;
+    if (!selected?.url || !this.selectedExpeditionId) {
+      this.lotActionError = 'Aucune expedition selectionnee';
+      return;
+    }
+
+    this.lotActionMessage = undefined;
+    this.lotActionError = undefined;
+
+    this.dashboardService.deleteExpedition(selected.url, this.selectedExpeditionId).subscribe({
+      next: () => {
+        this.lotActionMessage = 'Expedition supprimee';
+        this.selectedExpeditionId = undefined;
+        this.captureScrollPosition('.expedition-crud');
+        this.refresh();
+      },
+      error: (error: { message?: string }) => {
+        this.lotActionError = error.message ?? 'Echec suppression expedition';
+      },
+    });
+  }
+
   private fillFormFromSelectedLot(): void {
     const lot = this.selectedLot;
 
@@ -574,6 +797,35 @@ export class AppComponent implements OnInit, OnDestroy {
       quantite: lot.quantite ?? null,
       storageDate: lot.storageDate ?? '',
       idExploitation: null,
+    };
+  }
+
+  private fillFormFromSelectedExpedition(): void {
+    const expedition = this.selectedExpedition;
+
+    if (!expedition) {
+      this.expeditionForm = this.emptyExpeditionForm();
+      return;
+    }
+
+    this.expeditionForm = this.buildExpeditionFormFromView(expedition);
+  }
+
+  private buildExpeditionFormFromView(expedition: ExpeditionView): ExpeditionFormState {
+    return {
+      departAt: this.toDatetimeLocal(expedition.departAt),
+      arriveeEstimeeAt: this.toDatetimeLocal(expedition.arriveeEstimeeAt),
+      destinationPays: expedition.destinationPays ?? '',
+      destinationVille: expedition.destinationVille ?? '',
+      destinationClient: expedition.destinationClient ?? '',
+      poidsTotalKg: expedition.poidsTotalKg ?? null,
+      trackingTransporteur: expedition.trackingTransporteur ?? '',
+      quaiDepart: expedition.quaiDepart ?? '',
+      transporteur: expedition.transporteur ?? '',
+      livreurNom: expedition.livreurNom ?? '',
+      livreurTelephone: expedition.livreurTelephone ?? '',
+      statut: expedition.statut ?? 'En préparation',
+      lotsText: this.serializeExpeditionLots(expedition.lots ?? []),
     };
   }
 
@@ -634,6 +886,24 @@ export class AppComponent implements OnInit, OnDestroy {
     return this.buildPayloadForCreate();
   }
 
+  private buildPayloadForExpedition(form: ExpeditionFormState = this.expeditionForm): ExpeditionUpsertPayload {
+    return {
+      departAt: form.departAt,
+      arriveeEstimeeAt: form.arriveeEstimeeAt || undefined,
+      destinationPays: form.destinationPays,
+      destinationVille: form.destinationVille,
+      destinationClient: form.destinationClient,
+      poidsTotalKg: form.poidsTotalKg ?? undefined,
+      trackingTransporteur: form.trackingTransporteur || undefined,
+      quaiDepart: form.quaiDepart || undefined,
+      transporteur: form.transporteur || undefined,
+      livreurNom: form.livreurNom,
+      livreurTelephone: form.livreurTelephone || undefined,
+      statut: form.statut,
+      lots: this.parseExpeditionLots(form.lotsText),
+    };
+  }
+
   private applyLotUpdateLocally(lotId: string, payload: LotUpsertPayload): void {
     const selectedCountry = this.selectedCountry;
     if (!selectedCountry?.lots?.length) {
@@ -686,5 +956,52 @@ export class AppComponent implements OnInit, OnDestroy {
       storageDate: '',
       idExploitation: null,
     };
+  }
+
+  private emptyExpeditionForm() {
+    return {
+      departAt: '',
+      arriveeEstimeeAt: '',
+      destinationPays: '',
+      destinationVille: '',
+      destinationClient: '',
+      poidsTotalKg: null,
+      trackingTransporteur: '',
+      quaiDepart: '',
+      transporteur: '',
+      livreurNom: '',
+      livreurTelephone: '',
+      statut: 'En préparation',
+      lotsText: '',
+    };
+  }
+
+  private toDatetimeLocal(isoDateTime?: string): string {
+    return isoDateTime ? isoDateTime.slice(0, 16) : '';
+  }
+
+  private parseExpeditionLots(raw: string): { lotId: number; quantiteExpediee: number }[] {
+    if (!raw?.trim()) {
+      return [];
+    }
+
+    return raw
+      .split(/[\n,;]+/)
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+      .map((entry) => {
+        const [lotIdRaw, quantiteRaw] = entry.split(':').map((part) => part.trim());
+        return {
+          lotId: Number(lotIdRaw),
+          quantiteExpediee: Number(quantiteRaw),
+        };
+      })
+      .filter((item) => Number.isFinite(item.lotId) && Number.isFinite(item.quantiteExpediee));
+  }
+
+  private serializeExpeditionLots(lots: { lotId: number; quantiteExpediee: number | null }[]): string {
+    return lots
+      .map((lot) => `${lot.lotId}:${lot.quantiteExpediee ?? ''}`)
+      .join(', ');
   }
 }

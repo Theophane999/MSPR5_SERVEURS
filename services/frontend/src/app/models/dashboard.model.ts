@@ -31,6 +31,7 @@ export interface LotView {
 }
 
 export interface ExpeditionLotView {
+  lotId: number;
   lotReference: string;
   quantiteExpediee: number | null;
   poidsExpedieKg: number | null;

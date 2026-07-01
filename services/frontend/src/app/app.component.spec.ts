@@ -20,6 +20,11 @@ describe('AppComponent', () => {
           message: 'Backend child Brazil is online',
           timestamp: '2026-01-01T00:00:00Z',
         },
+        expeditions: [
+          { id: 'E1', statut: 'livree', destinationPays: 'France', destinationVille: 'Paris', destinationClient: 'Client A', departAt: '2026-06-01T08:00:00Z', arriveeEstimeeAt: '2026-06-02T08:00:00Z', poidsTotalKg: 100, trackingTransporteur: 'TRK-1', quaiDepart: 'Q1', transporteur: 'Translog', livreurNom: 'Ana', livreurTelephone: '010203', lots: [] },
+          { id: 'E2', statut: 'en_transit', destinationPays: 'France', destinationVille: 'Lyon', destinationClient: 'Client B', departAt: '2026-06-02T08:00:00Z', arriveeEstimeeAt: '2026-06-03T08:00:00Z', poidsTotalKg: 120, trackingTransporteur: 'TRK-2', quaiDepart: 'Q2', transporteur: 'Translog', livreurNom: 'Ben', livreurTelephone: '010204', lots: [] },
+          { id: 'E3', statut: 'en_transit', destinationPays: 'Spain', destinationVille: 'Madrid', destinationClient: 'Client C', departAt: '2026-06-03T08:00:00Z', arriveeEstimeeAt: '2026-06-04T08:00:00Z', poidsTotalKg: 150, trackingTransporteur: 'TRK-3', quaiDepart: 'Q3', transporteur: 'ShipIt', livreurNom: 'Caro', livreurTelephone: '010205', lots: [] },
+        ],
       },
       {
         name: 'ecuador',
@@ -30,7 +35,7 @@ describe('AppComponent', () => {
     ],
   };
 
-  function createComponentWith(serviceMock: Pick<DashboardService, 'loadDashboard' | 'motherUrl'>): ComponentFixture<AppComponent> {
+  function createComponentWith(serviceMock: Pick<DashboardService, 'loadDashboard' | 'motherUrl' | 'dashboardUrl'>): ComponentFixture<AppComponent> {
     TestBed.configureTestingModule({
       imports: [AppComponent],
       providers: [{ provide: DashboardService, useValue: serviceMock }],
@@ -45,6 +50,7 @@ describe('AppComponent', () => {
     const fixture = createComponentWith({
       loadDashboard: () => of(dashboardResponse),
       motherUrl: () => 'http://localhost:3200',
+      dashboardUrl: () => 'http://localhost:3200/api/children',
     });
 
     const component = fixture.componentInstance as AppComponent & {
@@ -69,6 +75,7 @@ describe('AppComponent', () => {
     const fixture = createComponentWith({
       loadDashboard: () => throwError(() => new Error('mother down')),
       motherUrl: () => 'http://localhost:3200',
+      dashboardUrl: () => 'http://localhost:3200/api/children',
     });
 
     const element = fixture.nativeElement as HTMLElement;
@@ -81,6 +88,7 @@ describe('AppComponent', () => {
     const fixture = createComponentWith({
       loadDashboard: () => dashboardSubject.asObservable(),
       motherUrl: () => 'http://localhost:3200',
+      dashboardUrl: () => 'http://localhost:3200/api/children',
     });
 
     const element = fixture.nativeElement as HTMLElement;
@@ -156,5 +164,32 @@ describe('AppComponent', () => {
       { sortBy: 'departAt', sortOrder: 'desc' },
     );
     expect(sortedExpeditionsByDate.map((expedition) => expedition.id)).toEqual(['E3', 'E1', 'E2']);
+  });
+
+  it('paginates expeditions and opens inline editing from the list', () => {
+    const fixture = createComponentWith({
+      loadDashboard: () => of(dashboardResponse),
+      motherUrl: () => 'http://localhost:3200',
+      dashboardUrl: () => 'http://localhost:3200/api/children',
+    });
+
+    const component = fixture.componentInstance as AppComponent & {
+      expeditionPageSize: number;
+      expeditionPageIndex: number;
+      paginatedSelectedCountryExpeditions: any[];
+      expeditionInlineEditId?: string;
+      expeditionInlineForm: { destinationClient: string };
+      startInlineExpeditionEdit: (expedition: any) => void;
+    };
+
+    component.expeditionPageSize = 1;
+    component.expeditionPageIndex = 1;
+
+    expect(component.paginatedSelectedCountryExpeditions.map((expedition) => expedition.id)).toEqual(['E2']);
+
+    component.startInlineExpeditionEdit(component.paginatedSelectedCountryExpeditions[0]);
+
+    expect(component.expeditionInlineEditId).toBe('E2');
+    expect(component.expeditionInlineForm.destinationClient).toBe('Client B');
   });
 });

@@ -2,6 +2,7 @@ package com.futurekawa.child;
 
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -123,7 +124,7 @@ public class StockRepository {
     }
 
     public List<Map<String, Object>> findExpeditionsByEntrepot(int idEntrepot) {
-        List<Map<String, Object>> expeditions = jdbc.query(
+        return jdbc.query(
             "SELECT DISTINCT e.\"ID_expedition\" AS id, e.\"statut\" AS statut, e.\"destination_pays\" AS destination_pays, " +
                 "e.\"destination_ville\" AS destination_ville, e.\"destination_client\" AS destination_client, " +
                 "e.\"poids_total_kg\" AS poids_total_kg, e.\"tracking_transporteur\" AS tracking_transporteur, " +
@@ -134,30 +135,99 @@ public class StockRepository {
                 "JOIN \"lot\" l ON l.\"ID_LOT\" = el.\"ID_LOT\" " +
                 "WHERE l.\"ID_ENTREPOT\" = ? " +
                 "ORDER BY e.\"depart_at\" DESC",
-            (rs, rowNum) -> {
-                Map<String, Object> row = new LinkedHashMap<>();
-                row.put("id", rs.getLong("id"));
-                row.put("statut", rs.getString("statut"));
-                row.put("destinationPays", rs.getString("destination_pays"));
-                row.put("destinationVille", rs.getString("destination_ville"));
-                row.put("destinationClient", rs.getString("destination_client"));
-                row.put("poidsTotalKg", toDouble(rs.getBigDecimal("poids_total_kg")));
-                row.put("trackingTransporteur", rs.getString("tracking_transporteur"));
-                row.put("quaiDepart", rs.getString("quai_depart"));
-                row.put("transporteur", rs.getString("transporteur"));
-                row.put("livreurNom", rs.getString("livreur_nom"));
-                row.put("livreurTelephone", rs.getString("livreur_telephone"));
-                Timestamp departAt = rs.getTimestamp("depart_at");
-                Timestamp arriveeAt = rs.getTimestamp("arrivee_estimee_at");
-                row.put("departAt", departAt != null ? departAt.toInstant().toString() : "");
-                row.put("arriveeEstimeeAt", arriveeAt != null ? arriveeAt.toInstant().toString() : "");
-                row.put("lots", findExpeditionLots(rs.getLong("id"), idEntrepot));
-                return row;
-            },
+            (rs, rowNum) -> mapExpeditionRow(rs, idEntrepot),
+            idEntrepot
+        );
+    }
+
+    public Optional<Map<String, Object>> findExpeditionByIdAndEntrepot(long expeditionId, int idEntrepot) {
+        List<Map<String, Object>> rows = jdbc.query(
+            "SELECT DISTINCT e.\"ID_expedition\" AS id, e.\"statut\" AS statut, e.\"destination_pays\" AS destination_pays, " +
+                "e.\"destination_ville\" AS destination_ville, e.\"destination_client\" AS destination_client, " +
+                "e.\"poids_total_kg\" AS poids_total_kg, e.\"tracking_transporteur\" AS tracking_transporteur, " +
+                "e.\"quai_depart\" AS quai_depart, e.\"transporteur\" AS transporteur, e.\"livreur_nom\" AS livreur_nom, " +
+                "e.\"livreur_telephone\" AS livreur_telephone, e.\"depart_at\" AS depart_at, e.\"arrivee_estimee_at\" AS arrivee_estimee_at " +
+                "FROM \"expedition\" e " +
+                "JOIN \"expedition_lot\" el ON el.\"ID_expedition\" = e.\"ID_expedition\" " +
+                "JOIN \"lot\" l ON l.\"ID_LOT\" = el.\"ID_LOT\" " +
+                "WHERE e.\"ID_expedition\" = ? AND l.\"ID_ENTREPOT\" = ?",
+            (rs, rowNum) -> mapExpeditionRow(rs, idEntrepot),
+            expeditionId,
             idEntrepot
         );
 
-        return expeditions;
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+
+        return Optional.of(rows.get(0));
+    }
+
+    public Map<String, Object> createExpedition(int idEntrepot, ExpeditionPayload payload) {
+        Timestamp departAt = parseTimestamp(payload.departAt());
+        Timestamp arriveeAt = parseOptionalTimestamp(payload.arriveeEstimeeAt());
+
+        Integer expeditionId = jdbc.queryForObject(
+            "INSERT INTO \"expedition\" (\"depart_at\", \"arrivee_estimee_at\", \"destination_pays\", \"destination_ville\", \"destination_client\", " +
+                "\"poids_total_kg\", \"tracking_transporteur\", \"quai_depart\", \"transporteur\", \"livreur_nom\", \"livreur_telephone\", \"statut\") " +
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING \"ID_expedition\"",
+            Integer.class,
+            departAt,
+            arriveeAt,
+            payload.destinationPays(),
+            payload.destinationVille(),
+            payload.destinationClient(),
+            payload.poidsTotalKg(),
+            payload.trackingTransporteur(),
+            payload.quaiDepart(),
+            payload.transporteur(),
+            payload.livreurNom(),
+            payload.livreurTelephone(),
+            payload.statut()
+        );
+
+        replaceExpeditionLots(expeditionId, idEntrepot, payload.lots());
+        return findExpeditionByIdAndEntrepot(expeditionId, idEntrepot).orElseThrow();
+    }
+
+    public Map<String, Object> updateExpedition(long expeditionId, int idEntrepot, ExpeditionPayload payload) {
+        if (findExpeditionByIdAndEntrepot(expeditionId, idEntrepot).isEmpty()) {
+            throw new IllegalStateException("Expedition introuvable");
+        }
+
+        Timestamp departAt = parseTimestamp(payload.departAt());
+        Timestamp arriveeAt = parseOptionalTimestamp(payload.arriveeEstimeeAt());
+
+        jdbc.update(
+            "UPDATE \"expedition\" SET \"depart_at\" = ?, \"arrivee_estimee_at\" = ?, \"destination_pays\" = ?, \"destination_ville\" = ?, \"destination_client\" = ?, " +
+                "\"poids_total_kg\" = ?, \"tracking_transporteur\" = ?, \"quai_depart\" = ?, \"transporteur\" = ?, \"livreur_nom\" = ?, \"livreur_telephone\" = ?, \"statut\" = ? " +
+                "WHERE \"ID_expedition\" = ?",
+            departAt,
+            arriveeAt,
+            payload.destinationPays(),
+            payload.destinationVille(),
+            payload.destinationClient(),
+            payload.poidsTotalKg(),
+            payload.trackingTransporteur(),
+            payload.quaiDepart(),
+            payload.transporteur(),
+            payload.livreurNom(),
+            payload.livreurTelephone(),
+            payload.statut(),
+            expeditionId
+        );
+
+        replaceExpeditionLots(expeditionId, idEntrepot, payload.lots());
+        return findExpeditionByIdAndEntrepot(expeditionId, idEntrepot).orElseThrow();
+    }
+
+    public void deleteExpeditionByIdAndEntrepot(long expeditionId, int idEntrepot) {
+        if (findExpeditionByIdAndEntrepot(expeditionId, idEntrepot).isEmpty()) {
+            throw new IllegalStateException("Expedition introuvable");
+        }
+
+        jdbc.update("DELETE FROM \"expedition_lot\" WHERE \"ID_expedition\" = ?", expeditionId);
+        jdbc.update("DELETE FROM \"expedition\" WHERE \"ID_expedition\" = ?", expeditionId);
     }
 
     private List<Map<String, Object>> findExpeditionLots(long expeditionId, int idEntrepot) {
@@ -187,6 +257,75 @@ public class StockRepository {
             expeditionId,
             idEntrepot
         );
+    }
+
+    private void replaceExpeditionLots(long expeditionId, int idEntrepot, List<ExpeditionLotPayload> lots) {
+        jdbc.update("DELETE FROM \"expedition_lot\" WHERE \"ID_expedition\" = ?", expeditionId);
+
+        if (lots == null) {
+            return;
+        }
+
+        for (ExpeditionLotPayload lot : lots) {
+            if (lot == null || lot.lotId() == null || lot.quantiteExpediee() == null) {
+                continue;
+            }
+
+            Integer count = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM \"lot\" WHERE \"ID_LOT\" = ? AND \"ID_ENTREPOT\" = ?",
+                Integer.class,
+                lot.lotId(),
+                idEntrepot
+            );
+
+            if (count == null || count == 0) {
+                continue;
+            }
+
+            jdbc.update(
+                "INSERT INTO \"expedition_lot\" (\"ID_expedition\", \"ID_LOT\", \"quantite_expediee\") VALUES (?, ?, ?)",
+                expeditionId,
+                lot.lotId(),
+                lot.quantiteExpediee()
+            );
+        }
+    }
+
+    private Map<String, Object> mapExpeditionRow(java.sql.ResultSet rs, int idEntrepot) throws java.sql.SQLException {
+        Map<String, Object> row = new LinkedHashMap<>();
+        row.put("id", rs.getLong("id"));
+        row.put("statut", rs.getString("statut"));
+        row.put("destinationPays", rs.getString("destination_pays"));
+        row.put("destinationVille", rs.getString("destination_ville"));
+        row.put("destinationClient", rs.getString("destination_client"));
+        row.put("poidsTotalKg", toDouble(rs.getBigDecimal("poids_total_kg")));
+        row.put("trackingTransporteur", rs.getString("tracking_transporteur"));
+        row.put("quaiDepart", rs.getString("quai_depart"));
+        row.put("transporteur", rs.getString("transporteur"));
+        row.put("livreurNom", rs.getString("livreur_nom"));
+        row.put("livreurTelephone", rs.getString("livreur_telephone"));
+        Timestamp departAt = rs.getTimestamp("depart_at");
+        Timestamp arriveeAt = rs.getTimestamp("arrivee_estimee_at");
+        row.put("departAt", departAt != null ? departAt.toInstant().toString() : "");
+        row.put("arriveeEstimeeAt", arriveeAt != null ? arriveeAt.toInstant().toString() : "");
+        row.put("lots", findExpeditionLots(rs.getLong("id"), idEntrepot));
+        return row;
+    }
+
+    private Timestamp parseTimestamp(String rawDateTime) {
+        if (rawDateTime == null || rawDateTime.isBlank()) {
+            return Timestamp.valueOf(LocalDateTime.now());
+        }
+
+        return Timestamp.valueOf(LocalDateTime.parse(rawDateTime));
+    }
+
+    private Timestamp parseOptionalTimestamp(String rawDateTime) {
+        if (rawDateTime == null || rawDateTime.isBlank()) {
+            return null;
+        }
+
+        return Timestamp.valueOf(LocalDateTime.parse(rawDateTime));
     }
 
     private Double toDouble(BigDecimal value) {

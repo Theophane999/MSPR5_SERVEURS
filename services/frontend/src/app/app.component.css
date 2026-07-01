@@ -740,6 +740,213 @@ dd {
   background: rgba(212, 154, 87, 0.1);
 }
 
+.ghost-button.danger {
+  color: #ff9a8b;
+  border-color: rgba(255, 154, 139, 0.24);
+}
+
+.ghost-button.danger:hover {
+  background: rgba(255, 154, 139, 0.1);
+}
+
+.lot-crud,
+.expedition-crud {
+  margin-top: 16px;
+}
+
+.lot-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.crud-grid label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.crud-grid input,
+.crud-grid select,
+.crud-grid textarea {
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: rgba(39, 23, 16, 0.92);
+  color: var(--ink);
+  padding: 10px 12px;
+  font: inherit;
+}
+
+.crud-grid textarea {
+  resize: vertical;
+  min-height: 90px;
+}
+
+.crud-grid .wide-field {
+  grid-column: 1 / -1;
+}
+
+.lot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.lot-actions button {
+  flex: 1 1 180px;
+}
+
+.expedition-actions button {
+  flex-basis: 220px;
+}
+
+.expedition-table-surface {
+  margin-top: 16px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid var(--line);
+  background: rgba(255, 246, 234, 0.02);
+}
+
+.expedition-table-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.expedition-pagination {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.expedition-table {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.expedition-table-row {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr 1fr 0.7fr 0.8fr 0.9fr;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 14px;
+  background: rgba(255, 246, 234, 0.03);
+}
+
+.expedition-table-head {
+  background: rgba(255, 246, 234, 0.06);
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.expedition-table-body {
+  cursor: pointer;
+  transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.expedition-table-body:hover {
+  transform: translateY(-1px);
+}
+
+.expedition-table-body.active {
+  border-color: rgba(212, 154, 87, 0.5);
+  box-shadow: 0 0 0 1px rgba(212, 154, 87, 0.15), 0 16px 30px rgba(0, 0, 0, 0.18);
+}
+
+.expedition-table-body.inline-active {
+  border-color: rgba(212, 154, 87, 0.7);
+  background: rgba(212, 154, 87, 0.08);
+}
+
+.expedition-table-body strong,
+.expedition-table-body small {
+  display: block;
+}
+
+.expedition-table-body strong {
+  font-size: 0.96rem;
+}
+
+.expedition-table-body small {
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.expedition-main-cell {
+  min-width: 0;
+}
+
+.row-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.row-actions button {
+  flex: 1 1 120px;
+  padding-inline: 14px;
+}
+
+.expedition-inline-editor {
+  margin: -2px 0 8px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(212, 154, 87, 0.2);
+  background: rgba(58, 34, 22, 0.7);
+}
+
+.expedition-inline-grid {
+  margin-top: 0;
+}
+
+.inline-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+
+.inline-actions button {
+  flex-basis: 180px;
+}
+
+.expedition-card {
+  cursor: pointer;
+  transition: transform 150ms ease, box-shadow 150ms ease, border-color 150ms ease;
+}
+
+.expedition-card:hover {
+  transform: translateY(-1px);
+}
+
+.expedition-card.active {
+  border-color: rgba(212, 154, 87, 0.5);
+  box-shadow: 0 0 0 1px rgba(212, 154, 87, 0.2), 0 16px 30px rgba(0, 0, 0, 0.18);
+}
+
+.expedition-grid-form {
+  margin-top: 14px;
+}
+
 .lots-grid {
   margin-top: 22px;
   display: grid;
@@ -1101,11 +1308,33 @@ dd {
   .filter-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .expedition-table-head {
+    display: none;
+  }
+
+  .expedition-table-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .row-actions,
+  .expedition-inline-editor {
+    grid-column: 1 / -1;
+  }
 }
 
 @media (max-width: 680px) {
   .filter-grid {
     grid-template-columns: 1fr;
+  }
+
+  .expedition-table-row {
+    grid-template-columns: 1fr;
+  }
+
+  .row-actions button,
+  .inline-actions button {
+    flex: 1 1 100%;
   }
 }
 

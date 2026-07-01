@@ -292,11 +292,13 @@
         <div class="panel-head">
           <div>
             <p class="panel-label">Gestion lots</p>
-            <h3>Ajouter / modifier / supprimer</h3>
+            <h3>CRUD stockage</h3>
           </div>
         </div>
 
-        <div class="lot-form-grid">
+        <p class="panel-note">Crée, modifie ou supprime un lot directement depuis le dashboard.</p>
+
+        <div class="lot-form-grid crud-grid">
           <label>Référence
             <input type="text" [(ngModel)]="lotForm.lotReference" placeholder="BR-24-0099" />
           </label>
@@ -462,7 +464,7 @@
         </div>
         <div class="filter-grid">
           <label>Statut
-            <select [(ngModel)]="expeditionFilter.status">
+            <select [(ngModel)]="expeditionFilter.status" (ngModelChange)="resetExpeditionPagination()">
               <option value="all">Tous</option>
               <option value="livree">Livrée</option>
               <option value="en_transit">En transit</option>
@@ -471,7 +473,7 @@
             </select>
           </label>
           <label>Trier par
-            <select [(ngModel)]="expeditionFilter.sortBy">
+            <select [(ngModel)]="expeditionFilter.sortBy" (ngModelChange)="resetExpeditionPagination()">
               <option value="departAt">Date départ</option>
               <option value="arriveeEstimeeAt">Date arrivée estimée</option>
               <option value="statut">Statut</option>
@@ -485,51 +487,204 @@
             </select>
           </label>
           <label>Ordre
-            <select [(ngModel)]="expeditionFilter.sortOrder">
+            <select [(ngModel)]="expeditionFilter.sortOrder" (ngModelChange)="resetExpeditionPagination()">
               <option value="desc">Décroissant</option>
               <option value="asc">Croissant</option>
             </select>
           </label>
           <label>Recherche
-            <input type="text" [(ngModel)]="expeditionFilter.query" placeholder="Client, ville, transporteur..." />
+            <input type="text" [(ngModel)]="expeditionFilter.query" (ngModelChange)="resetExpeditionPagination()" placeholder="Client, ville, transporteur..." />
           </label>
           <label>Date départ min
-            <input type="date" [(ngModel)]="expeditionFilter.fromDate" />
+            <input type="date" [(ngModel)]="expeditionFilter.fromDate" (ngModelChange)="resetExpeditionPagination()" />
           </label>
           <label>Date départ max
-            <input type="date" [(ngModel)]="expeditionFilter.toDate" />
+            <input type="date" [(ngModel)]="expeditionFilter.toDate" (ngModelChange)="resetExpeditionPagination()" />
           </label>
         </div>
       </div>
 
-      <div class="expeditions" *ngIf="filteredSelectedCountryExpeditions.length; else noExpeditions">
-        <article *ngFor="let expedition of filteredSelectedCountryExpeditions" class="expedition-card"
-          [ngClass]="expeditionStatusClass(expedition.statut)">
-          <header>
-            <div>
-              <strong>Expédition #{{ expedition.id }}</strong>
-              <small>{{ expedition.departAt | date:'short' }} → {{ expedition.arriveeEstimeeAt | date:'short' }}</small>
-            </div>
-            <span class="status-chip" [ngClass]="expeditionStatusClass(expedition.statut)">{{ expedition.statut }}</span>
-          </header>
-          <div class="expedition-grid">
-            <div><span>Client</span><strong>{{ expedition.destinationClient || 'N/A' }}</strong></div>
-            <div><span>Destination</span><strong>{{ expedition.destinationVille }}, {{ expedition.destinationPays }}</strong></div>
-            <div><span>Poids total</span><strong>{{ expedition.poidsTotalKg !== null ? ((expedition.poidsTotalKg | number:'1.0-2') + ' kg') : 'N/A' }}</strong></div>
-            <div><span>Transporteur</span><strong>{{ expedition.transporteur || 'N/A' }}</strong></div>
-            <div><span>Livreur</span><strong>{{ expedition.livreurNom }}{{ expedition.livreurTelephone ? (' — ' + expedition.livreurTelephone) : '' }}</strong></div>
-            <div><span>Tracking</span><strong>{{ expedition.trackingTransporteur || 'N/A' }}</strong></div>
-            <div><span>Quai départ</span><strong>{{ expedition.quaiDepart || 'N/A' }}</strong></div>
+      <div class="lot-crud panel-surface expedition-crud">
+        <div class="panel-head">
+          <div>
+            <p class="panel-label">Gestion expéditions</p>
+            <h3>Créer / modifier / supprimer</h3>
           </div>
-          <div class="measure-table" *ngIf="expedition.lots.length">
-            <header><span>Référence lot</span><span>Quantité</span><span>Poids</span></header>
-            <div *ngFor="let l of expedition.lots">
-              <span>{{ l.lotReference }}</span>
-              <span>{{ l.quantiteExpediee ?? 'N/A' }}</span>
-              <span>{{ l.poidsExpedieKg !== null ? ((l.poidsExpedieKg | number:'1.0-2') + ' kg') : 'N/A' }}</span>
-            </div>
+        </div>
+
+        <p class="panel-note">Sélectionne une expédition à gauche pour la modifier, ou crée-en une nouvelle avec la composition lot:quantité.</p>
+
+        <div class="lot-form-grid crud-grid expedition-grid-form">
+          <label>Date départ
+            <input type="datetime-local" [(ngModel)]="expeditionForm.departAt" />
+          </label>
+          <label>Date arrivée estimée
+            <input type="datetime-local" [(ngModel)]="expeditionForm.arriveeEstimeeAt" />
+          </label>
+          <label>Pays destination
+            <input type="text" [(ngModel)]="expeditionForm.destinationPays" placeholder="France" />
+          </label>
+          <label>Ville destination
+            <input type="text" [(ngModel)]="expeditionForm.destinationVille" placeholder="Le Havre" />
+          </label>
+          <label>Client destination
+            <input type="text" [(ngModel)]="expeditionForm.destinationClient" placeholder="Amazon France" />
+          </label>
+          <label>Poids total (kg)
+            <input type="number" step="0.01" [(ngModel)]="expeditionForm.poidsTotalKg" />
+          </label>
+          <label>Transporteur
+            <input type="text" [(ngModel)]="expeditionForm.transporteur" placeholder="Fret Atlantique" />
+          </label>
+          <label>Livreur
+            <input type="text" [(ngModel)]="expeditionForm.livreurNom" placeholder="Carlos Almeida" />
+          </label>
+          <label>Téléphone livreur
+            <input type="text" [(ngModel)]="expeditionForm.livreurTelephone" placeholder="+33-6-11-22-33-44" />
+          </label>
+          <label>Tracking
+            <input type="text" [(ngModel)]="expeditionForm.trackingTransporteur" placeholder="FR-FA-2026-000781" />
+          </label>
+          <label>Quai départ
+            <input type="text" [(ngModel)]="expeditionForm.quaiDepart" placeholder="Q3" />
+          </label>
+          <label>Statut
+            <select [(ngModel)]="expeditionForm.statut">
+              <option value="En préparation">En préparation</option>
+              <option value="Expédiée">Expédiée</option>
+              <option value="Livrée">Livrée</option>
+            </select>
+          </label>
+          <label class="wide-field">Composition lots (lotId:quantite, séparés par virgule ou nouvelle ligne)
+            <textarea rows="3" [(ngModel)]="expeditionForm.lotsText" placeholder="1:120, 5:80"></textarea>
+          </label>
+        </div>
+
+        <div class="lot-actions expedition-actions">
+          <button type="button" (click)="createExpedition()">Créer expédition</button>
+          <button type="button" (click)="updateSelectedExpedition()">Modifier expédition sélectionnée</button>
+          <button type="button" (click)="deleteSelectedExpedition()">Supprimer expédition sélectionnée</button>
+          <button type="button" (click)="resetExpeditionForm()">Vider formulaire</button>
+        </div>
+
+        <p class="feedback ok-feedback" *ngIf="lotActionMessage">{{ lotActionMessage }}</p>
+        <p class="feedback error" *ngIf="lotActionError">{{ lotActionError }}</p>
+      </div>
+
+      <div class="expeditions expedition-table-surface" *ngIf="filteredSelectedCountryExpeditions.length; else noExpeditions">
+        <div class="expedition-table-toolbar">
+          <div>
+            <p class="panel-label">Vue moderne</p>
+            <h3>Expéditions filtrées</h3>
           </div>
-        </article>
+          <div class="expedition-pagination">
+            <span>{{ expeditionPageStart }}-{{ expeditionPageEnd }} / {{ filteredSelectedCountryExpeditions.length }}</span>
+            <button type="button" class="ghost-button" (click)="previousExpeditionPage()" [disabled]="expeditionPageIndex === 0">Précédent</button>
+            <button type="button" class="ghost-button" (click)="nextExpeditionPage()" [disabled]="expeditionPageIndex + 1 >= expeditionTotalPages">Suivant</button>
+          </div>
+        </div>
+
+        <div class="expedition-table">
+          <div class="expedition-table-row expedition-table-head">
+            <span>Expédition</span>
+            <span>Destination</span>
+            <span>Client</span>
+            <span>Livraison</span>
+            <span>Lots</span>
+            <span>Statut</span>
+            <span>Actions</span>
+          </div>
+
+          <ng-container *ngFor="let expedition of paginatedSelectedCountryExpeditions; trackBy: trackByExpeditionId">
+            <div class="expedition-table-row expedition-table-body"
+              [class.active]="selectedExpedition?.id === expedition.id"
+              [class.inline-active]="expeditionInlineEditId === expedition.id"
+              (click)="selectExpedition(expedition.id)">
+              <div class="expedition-main-cell">
+                <strong>#{{ expedition.id }}</strong>
+                <small>{{ expedition.departAt | date:'short' }} → {{ expedition.arriveeEstimeeAt | date:'short' }}</small>
+              </div>
+              <div>
+                <strong>{{ expedition.destinationVille || 'N/A' }}</strong>
+                <small>{{ expedition.destinationPays || 'N/A' }}</small>
+              </div>
+              <div>
+                <strong>{{ expedition.destinationClient || 'N/A' }}</strong>
+                <small>{{ expedition.transporteur || 'Transporteur inconnu' }}</small>
+              </div>
+              <div>
+                <strong>{{ expedition.livreurNom || 'N/A' }}</strong>
+                <small>{{ expedition.livreurTelephone || 'Téléphone non renseigné' }}</small>
+              </div>
+              <div>
+                <strong>{{ expedition.lots.length }}</strong>
+                <small *ngIf="expedition.lots.length">{{ expedition.lots[0].lotReference }}{{ expedition.lots.length > 1 ? (' + ' + (expedition.lots.length - 1)) : '' }}</small>
+                <small *ngIf="!expedition.lots.length">Aucun lot</small>
+              </div>
+              <div>
+                <span class="status-chip" [ngClass]="expeditionStatusClass(expedition.statut)">{{ expedition.statut }}</span>
+                <small>{{ expedition.poidsTotalKg !== null ? ((expedition.poidsTotalKg | number:'1.0-2') + ' kg') : 'N/A' }}</small>
+              </div>
+              <div class="row-actions">
+                <button type="button" class="ghost-button" (click)="startInlineExpeditionEdit(expedition, $event)">Éditer</button>
+                <button type="button" class="ghost-button danger" (click)="deleteInlineExpedition(expedition, $event)">Supprimer</button>
+              </div>
+            </div>
+
+            <div class="expedition-inline-editor" *ngIf="expeditionInlineEditId === expedition.id">
+              <div class="crud-grid expedition-inline-grid">
+                <label>Date départ
+                  <input type="datetime-local" [(ngModel)]="expeditionInlineForm.departAt" />
+                </label>
+                <label>Date arrivée estimée
+                  <input type="datetime-local" [(ngModel)]="expeditionInlineForm.arriveeEstimeeAt" />
+                </label>
+                <label>Client destination
+                  <input type="text" [(ngModel)]="expeditionInlineForm.destinationClient" />
+                </label>
+                <label>Ville destination
+                  <input type="text" [(ngModel)]="expeditionInlineForm.destinationVille" />
+                </label>
+                <label>Pays destination
+                  <input type="text" [(ngModel)]="expeditionInlineForm.destinationPays" />
+                </label>
+                <label>Poids total (kg)
+                  <input type="number" step="0.01" [(ngModel)]="expeditionInlineForm.poidsTotalKg" />
+                </label>
+                <label>Transporteur
+                  <input type="text" [(ngModel)]="expeditionInlineForm.transporteur" />
+                </label>
+                <label>Livreur
+                  <input type="text" [(ngModel)]="expeditionInlineForm.livreurNom" />
+                </label>
+                <label>Téléphone livreur
+                  <input type="text" [(ngModel)]="expeditionInlineForm.livreurTelephone" />
+                </label>
+                <label>Tracking
+                  <input type="text" [(ngModel)]="expeditionInlineForm.trackingTransporteur" />
+                </label>
+                <label>Quai départ
+                  <input type="text" [(ngModel)]="expeditionInlineForm.quaiDepart" />
+                </label>
+                <label>Statut
+                  <select [(ngModel)]="expeditionInlineForm.statut">
+                    <option value="En préparation">En préparation</option>
+                    <option value="Expédiée">Expédiée</option>
+                    <option value="Livrée">Livrée</option>
+                  </select>
+                </label>
+                <label class="wide-field">Composition lots
+                  <textarea rows="3" [(ngModel)]="expeditionInlineForm.lotsText"></textarea>
+                </label>
+              </div>
+
+              <div class="inline-actions">
+                <button type="button" (click)="saveInlineExpeditionEdit(expedition, $event)">Enregistrer</button>
+                <button type="button" class="ghost-button" (click)="cancelInlineExpeditionEdit($event)">Annuler</button>
+              </div>
+            </div>
+          </ng-container>
+        </div>
       </div>
       <ng-template #noExpeditions>
         <p class="feedback">Aucune expédition enregistrée pour ce pays.</p>

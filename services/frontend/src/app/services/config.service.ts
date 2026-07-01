@@ -17,7 +17,7 @@ interface WindowWithEnv extends Window {
 export class ConfigService {
   private config: AppConfig = {
     production: false,
-    backendMotherUrl: 'http://localhost:3200',
+    backendMotherUrl: '/api',
     apiTimeout: 30000,
     refreshInterval: 300
   };
