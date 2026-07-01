@@ -1,0 +1,82 @@
+#!/bin/bash
+set -euxo pipefail
+
+apt-get update
+apt-get install -y ca-certificates curl gnupg lsb-release
+
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+  $(. /etc/os-release && echo $VERSION_CODENAME) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+apt-get update
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+systemctl enable docker
+systemctl start docker
+
+mkdir -p /opt/futurekawa/country
+curl -fsSL "${db_init_sql_url}" -o /opt/futurekawa/country/init.sql
+
+cat >/opt/futurekawa/country/docker-compose.yml <<'EOF'
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: futurekawa_${country_name}
+      POSTGRES_USER: futurekawa
+      POSTGRES_PASSWORD: ${db_password}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U futurekawa"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+  backend-child:
+    image: futurekawa/backend-child:prod
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      COUNTRY: ${country_label}
+      ENTREPOT_ID: "${entrepot_id}"
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: futurekawa_${country_name}
+      DB_USER: futurekawa
+      DB_PASSWORD: ${db_password}
+      MQTT_BROKER: tcp://mosquitto:1883
+      MQTT_INTERVAL_SECONDS: "300"
+    depends_on:
+      db:
+        condition: service_healthy
+      mosquitto:
+        condition: service_started
+    ports:
+      - "3000:3000"
+
+volumes:
+  db_data:
+EOF
+
+cat >/opt/futurekawa/country/mosquitto.conf <<'EOF'
+listener 1883 0.0.0.0
+allow_anonymous true
+EOF
+
+cd /opt/futurekawa/country
+docker compose up -d

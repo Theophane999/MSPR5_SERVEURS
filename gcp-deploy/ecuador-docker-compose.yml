@@ -1,0 +1,44 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: futurekawa_ecuador
+      POSTGRES_USER: futurekawa
+      POSTGRES_PASSWORD: futurekawa_pwd
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./Bdd/MSPR5_BDD-1778060454.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U futurekawa"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+
+  backend-child:
+    build: .
+    environment:
+      PORT: 3000
+      COUNTRY: Ecuador
+      ENTREPOT_ID: 2
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: futurekawa_ecuador
+      DB_USER: futurekawa
+      DB_PASSWORD: futurekawa_pwd
+      MQTT_BROKER: tcp://mosquitto:1883
+      MQTT_INTERVAL_SECONDS: 300
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
+      - mosquitto
+
+volumes:
+  db_data:

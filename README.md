@@ -207,3 +207,88 @@ Le workflow `cd.yml` :
 - est prevu pour un runner `self-hosted` avec Docker et Terraform
 
 Ce choix donne un deploiement persistant sur une machine cible, contrairement a un runner GitHub heberge qui serait ephemere.
+
+## Workflow equipe: feature -> pre-prod -> main
+
+Objectif: chaque dev valide sa branche feature en local avec un environnement pre-prod reproductible, puis passe par `pre-prod` avant `main`.
+
+### 1. Travailler sur une branche feature
+
+```powershell
+git checkout pre-prod
+git pull origin pre-prod
+git checkout -b feature/ma-modif
+```
+
+### 2. Lancer la pre-prod locale sur la branche feature
+
+```powershell
+docker compose -f docker-compose.preprod.yml up -d --build
+```
+
+### 3. Smoke tests minimum
+
+Front ouvre:
+
+```powershell
+Invoke-WebRequest -Uri "http://localhost:8080" -UseBasicParsing | Select-Object -ExpandProperty StatusCode
+```
+
+API mere repond:
+
+```powershell
+Invoke-WebRequest -Uri "http://localhost:3200/api/children" -UseBasicParsing | Select-Object -ExpandProperty StatusCode
+```
+
+Les pays sont `available=true`:
+
+```powershell
+$r = Invoke-WebRequest -Uri "http://localhost:3200/api/children" -UseBasicParsing
+$j = $r.Content | ConvertFrom-Json
+$j.children | ForEach-Object { "{0}: available={1}, lots={2}, expeditions={3}" -f $_.name, $_.available, ($_.lots | Measure-Object | Select-Object -ExpandProperty Count), ($_.expeditions | Measure-Object | Select-Object -ExpandProperty Count) }
+```
+
+Alternative recommandee (script unique):
+
+```powershell
+./scripts/smoke-preprod.ps1
+```
+
+Le script execute ces tests et retourne un code d'erreur si un test echoue:
+
+- Frontend HTTP: `GET /` sur le frontend doit renvoyer HTTP 200
+- Mother API HTTP: `GET /api/children` doit renvoyer HTTP 200
+- Mother API JSON: la reponse doit etre un JSON valide
+- Children list present: la cle `children` doit exister et contenir au moins un element
+- Children availability: tous les enfants doivent etre `available=true`
+- Children data completeness: chaque enfant doit avoir `lots > 0` et `expeditions > 0`
+- Child direct health: tous les endpoints `/health` des backends pays doivent renvoyer HTTP 200
+
+Exemple contre la prod (URLs explicites):
+
+```powershell
+./scripts/smoke-preprod.ps1 `
+    -FrontendUrl "http://34.156.12.77" `
+    -MotherApiUrl "http://34.156.12.77:3200/api/children" `
+    -ChildHealthUrls "http://35.205.81.113:3000/health","http://34.62.99.9:3000/health","http://34.52.149.208:3000/health"
+```
+
+Arreter la stack locale:
+
+```powershell
+docker compose -f docker-compose.preprod.yml down
+```
+
+### 4. Merge feature -> pre-prod
+
+```powershell
+git add .
+git commit -m "feat: ..."
+git push -u origin feature/ma-modif
+```
+
+Puis ouvrir une PR `feature/ma-modif` vers `pre-prod`.
+
+### 5. Merge pre-prod -> main
+
+Apres validation CI/CD sur `pre-prod`, ouvrir une PR `pre-prod` vers `main` pour le deploiement prod.
