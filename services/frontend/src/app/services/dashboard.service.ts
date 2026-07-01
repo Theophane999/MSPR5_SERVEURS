@@ -25,7 +25,7 @@ export interface LotUpsertPayload {
 @Injectable({ providedIn: 'root' })
 export class DashboardService {
   private readonly http = inject(HttpClient);
-  private readonly configService = inject(ConfigService);
+  private readonly baseUrl = ((window as Window & { __env?: { backendMotherUrl?: string } }).__env?.backendMotherUrl ?? FALLBACK_URL).replace(/\/$/, '');
 
   private resolveChildBaseUrl(childBaseUrl: string) {
     const sanitizedUrl = childBaseUrl.replace(/\/$/, '');
@@ -45,9 +45,7 @@ export class DashboardService {
   }
 
   loadDashboard() {
-    const backendUrl = this.configService.backendMotherUrl;
-    const url = `${backendUrl}/api/children`;
-    return this.http.get<DashboardResponse>(url);
+    return this.http.get<DashboardResponse>(`${this.baseUrl}/api/children`);
   }
 
   createLot(childBaseUrl: string, payload: LotUpsertPayload) {
@@ -63,6 +61,6 @@ export class DashboardService {
   }
 
   motherUrl() {
-    return this.configService.backendMotherUrl;
+    return this.baseUrl;
   }
 }
