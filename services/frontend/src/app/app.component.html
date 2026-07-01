@@ -512,7 +512,7 @@
           </div>
         </div>
 
-        <p class="panel-note">Sélectionne une expédition à gauche pour la modifier, ou crée-en une nouvelle avec la composition lot:quantité.</p>
+        <p class="panel-note">Sélectionne une expédition à gauche pour la modifier, ou crée-en une nouvelle avec la composition lotId:quantité (ou lotReference:quantité).</p>
 
         <div class="lot-form-grid crud-grid expedition-grid-form">
           <label>Date départ
@@ -555,8 +555,8 @@
               <option value="Livrée">Livrée</option>
             </select>
           </label>
-          <label class="wide-field">Composition lots (lotId:quantite, séparés par virgule ou nouvelle ligne)
-            <textarea rows="3" [(ngModel)]="expeditionForm.lotsText" placeholder="1:120, 5:80"></textarea>
+          <label class="wide-field">Composition lots (lotId:quantite ou lotReference:quantite, séparés par virgule ou nouvelle ligne)
+            <textarea rows="3" [(ngModel)]="expeditionForm.lotsText" placeholder="1:120, BR-24-0099:80"></textarea>
           </label>
         </div>
 

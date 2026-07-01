@@ -295,7 +295,14 @@ export class AppComponent implements OnInit, OnDestroy {
     this.lotActionMessage = undefined;
     this.lotActionError = undefined;
 
-    this.dashboardService.updateExpedition(selected.url, expedition.id, this.buildPayloadForExpedition(this.expeditionInlineForm)).subscribe({
+    const payload = this.buildPayloadForExpedition(this.expeditionInlineForm);
+    const validationError = this.validateExpeditionPayload(payload);
+    if (validationError) {
+      this.lotActionError = validationError;
+      return;
+    }
+
+    this.dashboardService.updateExpedition(selected.url, expedition.id, payload).subscribe({
       next: () => {
         this.lotActionMessage = 'Expedition mise a jour';
         this.cancelInlineExpeditionEdit();
@@ -761,7 +768,14 @@ export class AppComponent implements OnInit, OnDestroy {
     this.lotActionMessage = undefined;
     this.lotActionError = undefined;
 
-    this.dashboardService.createExpedition(selected.url, this.buildPayloadForExpedition()).subscribe({
+    const payload = this.buildPayloadForExpedition();
+    const validationError = this.validateExpeditionPayload(payload);
+    if (validationError) {
+      this.lotActionError = validationError;
+      return;
+    }
+
+    this.dashboardService.createExpedition(selected.url, payload).subscribe({
       next: () => {
         this.lotActionMessage = 'Expedition ajoutee avec succes';
         this.captureScrollPosition('.expedition-crud');
@@ -783,7 +797,14 @@ export class AppComponent implements OnInit, OnDestroy {
     this.lotActionMessage = undefined;
     this.lotActionError = undefined;
 
-    this.dashboardService.updateExpedition(selected.url, this.selectedExpeditionId, this.buildPayloadForExpedition()).subscribe({
+    const payload = this.buildPayloadForExpedition();
+    const validationError = this.validateExpeditionPayload(payload);
+    if (validationError) {
+      this.lotActionError = validationError;
+      return;
+    }
+
+    this.dashboardService.updateExpedition(selected.url, this.selectedExpeditionId, payload).subscribe({
       next: () => {
         this.lotActionMessage = 'Expedition mise a jour';
         this.captureScrollPosition('.expedition-crud');
@@ -944,6 +965,46 @@ export class AppComponent implements OnInit, OnDestroy {
     };
   }
 
+  private validateExpeditionPayload(payload: ExpeditionUpsertPayload): string | undefined {
+    if (!payload.departAt?.trim()) {
+      return 'Date de depart obligatoire';
+    }
+
+    if (!payload.destinationPays?.trim() || !payload.destinationVille?.trim() || !payload.destinationClient?.trim()) {
+      return 'Destination incomplete (pays, ville, client requis)';
+    }
+
+    if (payload.poidsTotalKg == null || !Number.isFinite(payload.poidsTotalKg)) {
+      return 'Poids total obligatoire';
+    }
+
+    if (!payload.livreurNom?.trim()) {
+      return 'Nom du livreur obligatoire';
+    }
+
+    if (!payload.statut?.trim()) {
+      return 'Statut expedition obligatoire';
+    }
+
+    if (!payload.lots?.length) {
+      return 'Composition lots invalide: utilise "lotId:quantite" ou "lotReference:quantite"';
+    }
+
+    const hasInvalidLot = payload.lots.some((lot) => {
+      if (lot.lotId == null || lot.quantiteExpediee == null) {
+        return true;
+      }
+
+      return !Number.isFinite(lot.lotId) || !Number.isFinite(lot.quantiteExpediee) || lot.quantiteExpediee <= 0;
+    });
+
+    if (hasInvalidLot) {
+      return 'Composition lots invalide: chaque lot doit avoir un identifiant/reference et une quantite > 0';
+    }
+
+    return undefined;
+  }
+
   private applyLotUpdateLocally(lotId: string, payload: LotUpsertPayload): void {
     const selectedCountry = this.selectedCountry;
     if (!selectedCountry?.lots?.length) {
@@ -1025,18 +1086,45 @@ export class AppComponent implements OnInit, OnDestroy {
       return [];
     }
 
+    const availableLots = this.selectedCountryLots;
+
     return raw
       .split(/[\n,;]+/)
       .map((entry) => entry.trim())
       .filter(Boolean)
       .map((entry) => {
-        const [lotIdRaw, quantiteRaw] = entry.split(':').map((part) => part.trim());
+        const [lotIdentifierRaw, quantiteRaw] = entry.split(':').map((part) => part.trim());
         return {
-          lotId: Number(lotIdRaw),
+          lotId: this.resolveLotIdentifier(lotIdentifierRaw, availableLots),
           quantiteExpediee: Number(quantiteRaw),
         };
       })
-      .filter((item) => Number.isFinite(item.lotId) && Number.isFinite(item.quantiteExpediee));
+      .filter((item) => Number.isFinite(item.lotId) && Number.isFinite(item.quantiteExpediee) && item.quantiteExpediee > 0);
+  }
+
+  private resolveLotIdentifier(identifier: string | undefined, availableLots: LotView[]): number {
+    const raw = identifier?.trim() ?? '';
+    if (!raw) {
+      return Number.NaN;
+    }
+
+    const numericId = Number(raw);
+    if (Number.isFinite(numericId)) {
+      return numericId;
+    }
+
+    const normalized = raw.toLowerCase();
+    const found = availableLots.find((lot) => {
+      const lotRef = lot.lotReference?.toLowerCase();
+      const lotId = String(lot.id).toLowerCase();
+      return lotRef === normalized || lotId === normalized;
+    });
+
+    if (!found) {
+      return Number.NaN;
+    }
+
+    return Number(found.id);
   }
 
   private serializeExpeditionLots(lots: { lotId: number; quantiteExpediee: number | null }[]): string {
