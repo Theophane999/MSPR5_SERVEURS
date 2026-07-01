@@ -1,0 +1,53 @@
+gcp_project_id   = "my-gcp-project-id"
+gcp_region       = "europe-west1"
+name_prefix      = "futurekawa-prod"
+
+# Lock this down to your office/VPN in real production.
+admin_ingress_cidrs = [
+  "0.0.0.0/0"
+]
+
+# Restrict MQTT publish source CIDRs if you know IoT egress ranges.
+iot_ingress_cidrs = [
+  "0.0.0.0/0"
+]
+
+ssh_username   = "ubuntu"
+ssh_public_key = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA..."
+
+child_db_password = "change-me"
+
+docker_registry = "index.docker.io"
+
+# Optional: override if you front mother with domain / load balancer.
+backend_mother_public_url = ""
+
+# Optional DNS (Cloud DNS). Leave empty to keep IP-based URLs only.
+# Example domain: "future-kawa.com"
+dns_domain_name            = ""
+dns_managed_zone_name      = "futurekawa-prod-zone"
+dns_create_country_records = true
+
+# Optional: specify a dedicated VM service account.
+service_account_email = ""
+
+country_servers = {
+  brazil = {
+    zone          = "europe-west1-c"
+    entrepot_id   = 1
+    country_label = "Brazil"
+    machine_type  = "e2-medium"
+  }
+  ecuador = {
+    zone          = "europe-west1-c"
+    entrepot_id   = 2
+    country_label = "Ecuador"
+    machine_type  = "e2-medium"
+  }
+  colombia = {
+    zone          = "europe-west1-c"
+    entrepot_id   = 3
+    country_label = "Colombia"
+    machine_type  = "e2-medium"
+  }
+}
