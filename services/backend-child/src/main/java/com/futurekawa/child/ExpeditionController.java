@@ -44,8 +44,12 @@ public class ExpeditionController {
     @PostMapping("/api/expeditions")
     public ResponseEntity<Map<String, Object>> createExpedition(@RequestBody ExpeditionPayload payload) {
         validatePayload(payload);
-        Map<String, Object> created = stockRepository.createExpedition(entrepotId, payload);
-        return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        try {
+            Map<String, Object> created = stockRepository.createExpedition(entrepotId, payload);
+            return ResponseEntity.status(HttpStatus.CREATED).body(created);
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage());
+        }
     }
 
     @PutMapping("/api/expeditions/{expeditionId}")
@@ -53,6 +57,8 @@ public class ExpeditionController {
         validatePayload(payload);
         try {
             return stockRepository.updateExpedition(expeditionId, entrepotId, payload);
+        } catch (IllegalArgumentException exception) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage());
         } catch (IllegalStateException exception) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Expedition introuvable");
         }

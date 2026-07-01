@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS "expedition" (
 	"livreur_nom" varchar(120) NOT NULL,
 	"livreur_telephone" varchar(40),
 	"statut" varchar(40) NOT NULL,
-	CONSTRAINT "expedition_statut_check" CHECK ("statut" IN ('En préparation', 'Expédiée', 'Livrée')),
+	CONSTRAINT "expedition_statut_check" CHECK ("statut" IN ('En préparation', 'Expédiée', 'Livrée', 'En preparation', 'Expediee', 'Livree')),
 	PRIMARY KEY ("ID_expedition")
 );
 
@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS "expedition_lot" (
 	"ID_expedition" integer NOT NULL,
 	"ID_LOT" integer NOT NULL,
 	"quantite_expediee" integer NOT NULL,
+	CONSTRAINT "expedition_lot_quantite_positive" CHECK ("quantite_expediee" > 0),
 	PRIMARY KEY ("ID_expedition", "ID_LOT")
 );
 

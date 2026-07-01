@@ -11,6 +11,7 @@ import java.util.Optional;
 import java.math.BigDecimal;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 @Repository
 public class StockRepository {
@@ -163,6 +164,7 @@ public class StockRepository {
         return Optional.of(rows.get(0));
     }
 
+    @Transactional
     public Map<String, Object> createExpedition(int idEntrepot, ExpeditionPayload payload) {
         Timestamp departAt = parseTimestamp(payload.departAt());
         Timestamp arriveeAt = parseOptionalTimestamp(payload.arriveeEstimeeAt());
@@ -186,10 +188,15 @@ public class StockRepository {
             payload.statut()
         );
 
-        replaceExpeditionLots(expeditionId, idEntrepot, payload.lots());
+        int insertedLots = replaceExpeditionLots(expeditionId, idEntrepot, payload.lots());
+        if (insertedLots <= 0) {
+            throw new IllegalArgumentException("Aucun lot valide pour cet entrepot");
+        }
+
         return findExpeditionByIdAndEntrepot(expeditionId, idEntrepot).orElseThrow();
     }
 
+    @Transactional
     public Map<String, Object> updateExpedition(long expeditionId, int idEntrepot, ExpeditionPayload payload) {
         if (findExpeditionByIdAndEntrepot(expeditionId, idEntrepot).isEmpty()) {
             throw new IllegalStateException("Expedition introuvable");
@@ -217,10 +224,15 @@ public class StockRepository {
             expeditionId
         );
 
-        replaceExpeditionLots(expeditionId, idEntrepot, payload.lots());
+        int insertedLots = replaceExpeditionLots(expeditionId, idEntrepot, payload.lots());
+        if (insertedLots <= 0) {
+            throw new IllegalArgumentException("Aucun lot valide pour cet entrepot");
+        }
+
         return findExpeditionByIdAndEntrepot(expeditionId, idEntrepot).orElseThrow();
     }
 
+    @Transactional
     public void deleteExpeditionByIdAndEntrepot(long expeditionId, int idEntrepot) {
         if (findExpeditionByIdAndEntrepot(expeditionId, idEntrepot).isEmpty()) {
             throw new IllegalStateException("Expedition introuvable");
@@ -259,11 +271,12 @@ public class StockRepository {
         );
     }
 
-    private void replaceExpeditionLots(long expeditionId, int idEntrepot, List<ExpeditionLotPayload> lots) {
+    private int replaceExpeditionLots(long expeditionId, int idEntrepot, List<ExpeditionLotPayload> lots) {
         jdbc.update("DELETE FROM \"expedition_lot\" WHERE \"ID_expedition\" = ?", expeditionId);
+        int inserted = 0;
 
         if (lots == null) {
-            return;
+            return inserted;
         }
 
         for (ExpeditionLotPayload lot : lots) {
@@ -288,7 +301,10 @@ public class StockRepository {
                 lot.lotId(),
                 lot.quantiteExpediee()
             );
+            inserted++;
         }
+
+        return inserted;
     }
 
     private Map<String, Object> mapExpeditionRow(java.sql.ResultSet rs, int idEntrepot) throws java.sql.SQLException {
