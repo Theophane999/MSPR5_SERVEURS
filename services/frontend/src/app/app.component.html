@@ -1,10 +1,39 @@
 <main class="cockpit-shell" [ngClass]="cockpitTone">
 
-  <!-- ALERTES CRITIQUES GLOBALES -->
-  <div class="global-alerts-banner" *ngIf="!loading && globalAlertsBanner.length">
-    <span class="banner-icon">⚠</span>
-    <div class="banner-messages">
-      <span *ngFor="let alert of globalAlertsBanner">{{ alert.message }}</span>
+  <!-- MODE UTILISATEUR & ALERTES CRITIQUES -->
+  <div class="user-mode-bar">
+    <div class="mode-selector">
+      <span>Mode :</span>
+      <button 
+        [class.active]="userMode === 'terrain'" 
+        (click)="switchUserMode('terrain')"
+        title="Interface optimisée pour les utilisateurs sur le terrain">
+        👨‍🔧 Terrain
+      </button>
+      <button 
+        [class.active]="userMode === 'siege'" 
+        (click)="switchUserMode('siege')"
+        title="Interface d'agrégation et de supervision pour le siège">
+        🏢 Siège
+      </button>
+    </div>
+    <div class="quick-alerts-toggle" *ngIf="hasUrgentAlerts">
+      <span class="alert-indicator">🔴 {{ quickAlerts.length }} alerte(s) urgent(es)</span>
+    </div>
+  </div>
+
+  <!-- ALERTES CRITIQUES URGENTES -->
+  <div class="urgent-alerts-banner" *ngIf="!loading && showAlertBanner && hasUrgentAlerts">
+    <div class="banner-header">
+      <span class="banner-icon">🚨</span>
+      <span class="banner-title">Alertes urgentes - Action requise</span>
+      <button class="close-btn" (click)="dismissAlertBanner()" title="Masquer les alertes">✕</button>
+    </div>
+    <div class="banner-alerts">
+      <div *ngFor="let alert of quickAlerts" class="alert-item" [ngClass]="'level-' + alert.level">
+        <strong>{{ alert.level === 'critical' ? '🚨' : '⚠' }} {{ alert.timestamp | date:'HH:mm' }}</strong>
+        <p>{{ alert.message }}</p>
+      </div>
     </div>
   </div>
 
@@ -17,8 +46,8 @@
       <div class="hero-actions">
         <button type="button" (click)="refresh()">Relancer le scan</button>
         <div class="hero-meta">
-          <span>Backend mère</span>
-          <strong>{{ apiUrl }}</strong>
+          <span>Système</span>
+          <strong>{{ apiStatus }}</strong>
         </div>
         <div class="hero-meta" *ngIf="!loading">
           <span>Prochain refresh</span>
@@ -90,24 +119,24 @@
     <article class="mother-card panel-surface">
       <div class="panel-head">
         <div>
-          <p class="panel-label">Hub central</p>
-          <h2>Backend mère</h2>
+          <p class="panel-label">Réseau enfant</p>
+          <h2>État global</h2>
         </div>
         <span class="badge">{{ motherStatusLabel }}</span>
       </div>
 
       <div class="mother-matrix">
         <div>
-          <span>Rôle</span>
-          <strong>mother</strong>
+          <span>Nœuds actifs</span>
+          <strong>{{ onlineCount }}/{{ totalCount }}</strong>
         </div>
         <div>
-          <span>Source</span>
-          <strong>{{ apiUrl }}</strong>
+          <span>Serveurs enfants</span>
+          <strong>{{ children.length }} détecté(s)</strong>
         </div>
         <div>
-          <span>Mode</span>
-          <strong>{{ loading ? 'collecte' : 'diffusion' }}</strong>
+          <span>Synchronisation</span>
+          <strong>{{ loading ? 'en cours' : 'à jour' }}</strong>
         </div>
       </div>
 

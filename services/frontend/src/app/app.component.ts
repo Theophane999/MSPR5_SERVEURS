@@ -3,13 +3,15 @@ import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { finalize } from 'rxjs';
 import { AlertView, ChildStatus, DashboardResponse, ExpeditionView, HistoryPoint, LotView } from './models/dashboard.model';
 import { DashboardService } from './services/dashboard.service';
+import { TemperatureChartComponent } from './components/temperature-chart.component';
 
 export type DetailTab = 'sensors' | 'stocks' | 'expeditions' | 'alerts';
+export type UserMode = 'terrain' | 'siege';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [NgFor, NgIf, NgClass, DatePipe, DecimalPipe],
+  imports: [NgFor, NgIf, NgClass, DatePipe, DecimalPipe, TemperatureChartComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
@@ -23,7 +25,7 @@ export class AppComponent implements OnInit, OnDestroy {
   protected readonly refreshIntervalSeconds = 300;
 
   protected loading = true;
-  protected apiUrl = `${this.dashboardService.motherUrl()}/api/children`;
+  protected apiStatus = 'Initialisation'; // Statut au lieu de l'URL en dur
   protected aggregatedAt?: string;
   protected children: ChildStatus[] = [];
   protected errorMessage?: string;
@@ -31,6 +33,8 @@ export class AppComponent implements OnInit, OnDestroy {
   protected selectedLotId?: string;
   protected activeTab: DetailTab = 'sensors';
   protected nextRefreshIn = 300;
+  protected userMode: UserMode = 'terrain';
+  protected showAlertBanner = true;
 
   ngOnInit(): void {
     this.refresh();
@@ -149,6 +153,10 @@ export class AppComponent implements OnInit, OnDestroy {
 
   protected selectLot(lotId: string): void {
     this.selectedLotId = lotId;
+  }
+
+  protected switchUserMode(mode: UserMode): void {
+    this.userMode = mode;
   }
 
   protected get selectedCountry(): ChildStatus | undefined {
@@ -373,10 +381,31 @@ export class AppComponent implements OnInit, OnDestroy {
     return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
   }
 
+  // ── User Mode & Alert Management ─────────────────────────────
+
+  protected get quickAlerts(): AlertView[] {
+    // Pour le terrain: uniquement les alertes critiques du pays sélectionné
+    // Pour le siège: les 5 premières alertes critiques globales
+    if (this.userMode === 'terrain') {
+      return (this.selectedCountry?.alerts ?? []).filter(a => a.level === 'critical').slice(0, 3);
+    } else {
+      return this.globalCriticalAlerts.slice(0, 5);
+    }
+  }
+
+  protected get hasUrgentAlerts(): boolean {
+    return this.quickAlerts.length > 0;
+  }
+
+  protected dismissAlertBanner(): void {
+    this.showAlertBanner = false;
+  }
+
   protected refresh(): void {
     this.loading = true;
     this.errorMessage = undefined;
     this.nextRefreshIn = this.refreshIntervalSeconds;
+    this.apiStatus = 'Synchronisation...';
 
     this.dashboardService
       .loadDashboard()
@@ -385,6 +414,7 @@ export class AppComponent implements OnInit, OnDestroy {
         next: (payload: DashboardResponse) => {
           this.children = payload.children;
           this.aggregatedAt = payload.aggregatedAt;
+          this.apiStatus = 'Connecté'; // Succès
 
           if (!this.children.length) {
             this.selectedCountryName = undefined;
@@ -405,6 +435,7 @@ export class AppComponent implements OnInit, OnDestroy {
         },
         error: (error: { message?: string }) => {
           this.errorMessage = error.message ?? 'Erreur inconnue';
+          this.apiStatus = 'Erreur de connexion'; // Statut d'erreur
         },
       });
   }
