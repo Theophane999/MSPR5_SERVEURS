@@ -136,7 +136,6 @@ pipeline {
           def isBranchProd    = env.BRANCH_NAME == 'main'
           env.IMAGE_TAG = env.GIT_COMMIT ? env.GIT_COMMIT.take(8) : 'ci'
           def tag = isBranchProd ? 'prod' : (isBranchPreprod ? 'preprod' : 'ci')
-          docker run --rm --network host -v \"$WORKSPACE:$WORKSPACE\" -w \"$WORKSPACE\" mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \
           sh """
             docker build -t futurekawa/backend-child:${tag} ./services/backend-child
             docker build -t futurekawa/backend-mother:${tag} ./services/backend-mother
