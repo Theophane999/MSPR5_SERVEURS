@@ -1006,6 +1006,37 @@ dd {
   margin-top: 14px;
 }
 
+.expedition-lot-builder {
+  display: grid;
+  grid-template-columns: 1.3fr 0.7fr auto;
+  gap: 10px;
+  align-items: end;
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px dashed rgba(212, 154, 87, 0.35);
+  border-radius: 12px;
+  background: rgba(255, 246, 234, 0.03);
+}
+
+.expedition-lot-builder button {
+  min-height: 42px;
+}
+
+.expedition-lots-preview {
+  margin-top: 10px;
+}
+
+.expedition-lots-preview header,
+.expedition-lots-preview div {
+  grid-template-columns: 1.4fr 0.7fr 0.8fr 0.9fr;
+  align-items: center;
+}
+
+.expedition-lots-preview .ghost-button {
+  padding: 6px 10px;
+  border-radius: 10px;
+}
+
 .lots-grid {
   margin-top: 22px;
   display: grid;
@@ -1394,6 +1425,10 @@ dd {
   .row-actions button,
   .inline-actions button {
     flex: 1 1 100%;
+  }
+
+  .expedition-lot-builder {
+    grid-template-columns: 1fr;
   }
 }
 
