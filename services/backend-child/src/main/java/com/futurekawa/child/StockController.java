@@ -75,11 +75,6 @@ public class StockController {
         }
     }
 
-    @GetMapping("/api/expeditions")
-    public List<Map<String, Object>> expeditions() {
-        return stockRepository.findExpeditionsByEntrepot(entrepotId);
-    }
-
     private void validateCreatePayload(LotPayload payload) {
         if (payload == null
             || isBlank(payload.lotReference())
