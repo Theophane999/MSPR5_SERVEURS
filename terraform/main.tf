@@ -6,6 +6,18 @@ locals {
   children_db_names = {
     for name, _child in var.children : name => "futurekawa_${name}"
   }
+
+  backend_child_source_hash = sha1(join("", [
+    for file in sort(tolist(fileset("${path.module}/../services/backend-child", "**"))) : filesha1("${path.module}/../services/backend-child/${file}")
+  ]))
+
+  backend_mother_source_hash = sha1(join("", [
+    for file in sort(tolist(fileset("${path.module}/../services/backend-mother", "**"))) : filesha1("${path.module}/../services/backend-mother/${file}")
+  ]))
+
+  frontend_source_hash = sha1(join("", [
+    for file in sort(tolist(fileset("${path.module}/../services/frontend", "**"))) : filesha1("${path.module}/../services/frontend/${file}")
+  ]))
 }
 
 resource "docker_network" "futurekawa" {
@@ -68,6 +80,10 @@ resource "docker_container" "mosquitto" {
 resource "docker_image" "backend_child" {
   name = "futurekawa/backend-child:latest"
 
+  triggers = {
+    source_hash = local.backend_child_source_hash
+  }
+
   build {
     context = "${path.module}/../services/backend-child"
   }
@@ -107,6 +123,10 @@ resource "docker_container" "backend_child" {
 resource "docker_image" "backend_mother" {
   name = "futurekawa/backend-mother:latest"
 
+  triggers = {
+    source_hash = local.backend_mother_source_hash
+  }
+
   build {
     context = "${path.module}/../services/backend-mother"
   }
@@ -137,6 +157,10 @@ resource "docker_container" "backend_mother" {
 
 resource "docker_image" "frontend" {
   name = "futurekawa/frontend:latest"
+
+  triggers = {
+    source_hash = local.frontend_source_hash
+  }
 
   build {
     context = "${path.module}/../services/frontend"
