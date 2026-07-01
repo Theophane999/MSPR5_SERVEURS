@@ -36,6 +36,9 @@ services:
 
   # ── Backend Child (à déployer sur chaque serveur pays séparément) ──
   backend-child:
+    build:
+      context: ./services/backend-child
+      dockerfile: Dockerfile
     image: futurekawa/backend-child:${DEPLOY_TAG:-prod}
     restart: always
     environment:
@@ -57,6 +60,9 @@ services:
 
   # ── Backend Mother ─────────────────────────────────────────────────
   backend-mother:
+    build:
+      context: ./services/backend-mother
+      dockerfile: Dockerfile
     image: futurekawa/backend-mother:${DEPLOY_TAG:-prod}
     restart: always
     environment:
@@ -79,6 +85,9 @@ services:
 
   # ── Frontend ───────────────────────────────────────────────────────
   frontend:
+    build:
+      context: ./services/frontend
+      dockerfile: Dockerfile
     image: futurekawa/frontend:${DEPLOY_TAG:-prod}
     restart: always
     environment:
