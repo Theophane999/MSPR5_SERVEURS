@@ -28,7 +28,7 @@ describe('DashboardService', () => {
 
     service.loadDashboard().subscribe();
 
-    const request = http.expectOne('http://example.test:3200/api/children');
+    const request = http.expectOne((req) => req.url.endsWith('/api/children'));
     expect(request.request.method).toBe('GET');
     request.flush({ role: 'mother', aggregatedAt: '2026-01-01T00:00:00Z', children: [] });
     http.verify();

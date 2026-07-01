@@ -1,19 +1,20 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { DashboardResponse } from '../models/dashboard.model';
-
-const FALLBACK_URL = 'http://localhost:3200';
+import { ConfigService } from './config.service';
 
 @Injectable({ providedIn: 'root' })
 export class DashboardService {
   private readonly http = inject(HttpClient);
-  private readonly baseUrl = ((window as Window & { __env?: { backendMotherUrl?: string } }).__env?.backendMotherUrl ?? FALLBACK_URL).replace(/\/$/, '');
+  private readonly configService = inject(ConfigService);
 
   loadDashboard() {
-    return this.http.get<DashboardResponse>(`${this.baseUrl}/api/children`);
+    const backendUrl = this.configService.backendMotherUrl;
+    const url = `${backendUrl}/api/children`;
+    return this.http.get<DashboardResponse>(url);
   }
 
   motherUrl() {
-    return this.baseUrl;
+    return this.configService.backendMotherUrl;
   }
 }
