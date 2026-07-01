@@ -3,6 +3,7 @@ import { of, Subject, throwError } from 'rxjs';
 import { AppComponent } from './app.component';
 import { DashboardService } from './services/dashboard.service';
 import { DashboardResponse } from './models/dashboard.model';
+import { filterExpeditions, filterLots } from './utils/filters';
 
 describe('AppComponent', () => {
   const dashboardResponse: DashboardResponse = {
@@ -86,5 +87,74 @@ describe('AppComponent', () => {
     expect(element.textContent).toContain('Chargement des données...');
 
     dashboardSubject.complete();
+  });
+
+  it('filters lots and expeditions with the shared helper utilities', () => {
+    const lots = [
+      { id: 'L1', lotReference: 'BR-001', storageDate: '2026-07-01', status: 'ok', variete: 'Arabica', process: 'Lave' },
+      { id: 'L2', storageDate: '2026-06-01', status: 'critical', variete: 'Robusta' },
+      { id: 'L3', storageDate: '2026-05-01', status: 'warning', variete: 'Arabica' },
+    ] as any;
+
+    const filteredLots = filterLots(lots, { status: 'critical', query: '' });
+    expect(filteredLots.length).toBe(1);
+    expect(filteredLots[0].id).toBe('L2');
+
+    const filteredLotsByQuery = filterLots(lots, { status: 'all', query: 'br-001' });
+    expect(filteredLotsByQuery.length).toBe(1);
+    expect(filteredLotsByQuery[0].id).toBe('L1');
+
+    const sortedLots = filterLots(
+      [
+        { id: 'L1', lotReference: 'BR-003', storageDate: '2026-07-01', status: 'ok', variete: 'C' },
+        { id: 'L2', lotReference: 'BR-001', storageDate: '2026-06-01', status: 'ok', variete: 'A' },
+        { id: 'L3', lotReference: 'BR-002', storageDate: '2026-05-01', status: 'ok', variete: 'B' },
+      ] as any,
+      { sortBy: 'lotReference', sortOrder: 'asc' },
+    );
+    expect(sortedLots.map((lot) => lot.id)).toEqual(['L2', 'L3', 'L1']);
+
+    const sortedLotsByStatus = filterLots(
+      [
+        { id: 'L1', storageDate: '2026-07-01', status: 'warning', variete: 'C' },
+        { id: 'L2', storageDate: '2026-06-01', status: 'critical', variete: 'A' },
+        { id: 'L3', storageDate: '2026-05-01', status: 'ok', variete: 'B' },
+      ] as any,
+      { sortBy: 'status', sortOrder: 'asc' },
+    );
+    expect(sortedLotsByStatus.map((lot) => lot.status)).toEqual(['critical', 'ok', 'warning']);
+
+    const expeditions = [
+      { id: 'E1', statut: 'livree', destinationPays: 'France', destinationVille: 'Paris', destinationClient: 'Client A', departAt: '2026-06-01' },
+      { id: 'E2', statut: 'en_transit', destinationPays: 'Spain', destinationVille: 'Bilbao', destinationClient: 'Client B', departAt: '2026-05-01' },
+    ] as any;
+
+    const filteredExpeditions = filterExpeditions(expeditions, { status: 'en_transit' });
+    expect(filteredExpeditions.length).toBe(1);
+    expect(filteredExpeditions[0].id).toBe('E2');
+
+    const filteredExpeditionsByQuery = filterExpeditions(expeditions, { query: 'client b' });
+    expect(filteredExpeditionsByQuery.length).toBe(1);
+    expect(filteredExpeditionsByQuery[0].id).toBe('E2');
+
+    const sortedExpeditions = filterExpeditions(
+      [
+        { id: 'E1', statut: 'livree', destinationPays: 'France', destinationVille: 'Paris', destinationClient: 'Client C', departAt: '2026-06-01' },
+        { id: 'E2', statut: 'en_transit', destinationPays: 'Spain', destinationVille: 'Bilbao', destinationClient: 'Client A', departAt: '2026-05-01' },
+        { id: 'E3', statut: 'annulee', destinationPays: 'Brazil', destinationVille: 'Recife', destinationClient: 'Client B', departAt: '2026-07-01' },
+      ] as any,
+      { sortBy: 'destinationClient', sortOrder: 'asc' },
+    );
+    expect(sortedExpeditions.map((expedition) => expedition.id)).toEqual(['E2', 'E3', 'E1']);
+
+    const sortedExpeditionsByDate = filterExpeditions(
+      [
+        { id: 'E1', statut: 'livree', destinationPays: 'France', destinationVille: 'Paris', destinationClient: 'Client C', departAt: '2026-06-01' },
+        { id: 'E2', statut: 'en_transit', destinationPays: 'Spain', destinationVille: 'Bilbao', destinationClient: 'Client A', departAt: '2026-05-01' },
+        { id: 'E3', statut: 'annulee', destinationPays: 'Brazil', destinationVille: 'Recife', destinationClient: 'Client B', departAt: '2026-07-01' },
+      ] as any,
+      { sortBy: 'departAt', sortOrder: 'desc' },
+    );
+    expect(sortedExpeditionsByDate.map((expedition) => expedition.id)).toEqual(['E3', 'E1', 'E2']);
   });
 });

@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { AlertView, ChildStatus, DashboardResponse, ExpeditionView, HistoryPoint, LotView } from './models/dashboard.model';
 import { DashboardService, LotUpsertPayload } from './services/dashboard.service';
+import { filterExpeditions, filterLots } from './utils/filters';
+import type { ExpeditionFilter, LotFilter } from './utils/filters';
 
 export type DetailTab = 'sensors' | 'stocks' | 'expeditions' | 'alerts';
 
@@ -36,6 +38,22 @@ export class AppComponent implements OnInit, OnDestroy {
   protected nextRefreshIn = 300;
   protected lotActionMessage?: string;
   protected lotActionError?: string;
+  protected stockFilter: LotFilter = {
+    status: 'all',
+    query: '',
+    fromDate: '',
+    toDate: '',
+    sortBy: 'storageDate',
+    sortOrder: 'desc',
+  };
+  protected expeditionFilter: ExpeditionFilter = {
+    status: 'all',
+    query: '',
+    fromDate: '',
+    toDate: '',
+    sortBy: 'departAt',
+    sortOrder: 'desc',
+  };
 
   protected lotForm: {
     lotReference: string;
@@ -170,6 +188,28 @@ export class AppComponent implements OnInit, OnDestroy {
     this.fillFormFromSelectedLot();
   }
 
+  protected resetStockFilters(): void {
+    this.stockFilter = {
+      status: 'all',
+      query: '',
+      fromDate: '',
+      toDate: '',
+      sortBy: 'storageDate',
+      sortOrder: 'desc',
+    };
+  }
+
+  protected resetExpeditionFilters(): void {
+    this.expeditionFilter = {
+      status: 'all',
+      query: '',
+      fromDate: '',
+      toDate: '',
+      sortBy: 'departAt',
+      sortOrder: 'desc',
+    };
+  }
+
   protected get selectedCountry(): ChildStatus | undefined {
     if (!this.children.length) {
       return undefined;
@@ -191,6 +231,10 @@ export class AppComponent implements OnInit, OnDestroy {
     return [...(this.selectedCountry?.lots ?? [])].sort((a, b) => b.storageDate.localeCompare(a.storageDate));
   }
 
+  protected get filteredSelectedCountryLots(): LotView[] {
+    return filterLots(this.selectedCountryLots, this.stockFilter);
+  }
+
   protected get selectedLot(): LotView | undefined {
     const lots = this.selectedCountryLots;
     if (!lots.length) {
@@ -210,6 +254,10 @@ export class AppComponent implements OnInit, OnDestroy {
 
   protected get selectedCountryExpeditions(): ExpeditionView[] {
     return [...(this.selectedCountry?.expeditions ?? [])].sort((a, b) => b.departAt.localeCompare(a.departAt));
+  }
+
+  protected get filteredSelectedCountryExpeditions(): ExpeditionView[] {
+    return filterExpeditions(this.selectedCountryExpeditions, this.expeditionFilter);
   }
 
   protected get selectedCountryStockState() {

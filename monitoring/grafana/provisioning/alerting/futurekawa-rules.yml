@@ -1,0 +1,175 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: futurekawa-backend-health
+    folder: FutureKawa
+    interval: 1m
+    rules:
+      - uid: futurekawa-cpu-high
+        title: FutureKawa CPU élevée
+        condition: C
+        for: 5m
+        noDataState: Alerting
+        execErrState: Alerting
+        annotations:
+          summary: "CPU élevée sur {{ $labels.job }}"
+          description: "La charge CPU moyenne dépasse 75% sur le backend {{ $labels.job }}"
+        labels:
+          severity: warning
+          service: futurekawa
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: avg by (job) (system_cpu_usage{job=~"backend-(mother|child).*"})
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+              instant: true
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: classic_conditions
+              refId: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params:
+                      - 0.75
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: avg
+                    params: []
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: $B
+              refId: C
+              intervalMs: 1000
+              maxDataPoints: 43200
+              instant: true
+
+      - uid: futurekawa-memory-high
+        title: FutureKawa mémoire heap élevée
+        condition: C
+        for: 5m
+        noDataState: Alerting
+        execErrState: Alerting
+        annotations:
+          summary: "Mémoire heap élevée sur {{ $labels.job }}"
+          description: "La heap utilisée dépasse 85% sur le backend {{ $labels.job }}"
+        labels:
+          severity: warning
+          service: futurekawa
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: sum by (job) (jvm_memory_used_bytes{area="heap",job=~"backend-(mother|child).*"}) / sum by (job) (jvm_memory_max_bytes{area="heap",job=~"backend-(mother|child).*"})
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+              instant: true
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: classic_conditions
+              refId: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params:
+                      - 0.85
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: avg
+                    params: []
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: $B
+              refId: C
+              intervalMs: 1000
+              maxDataPoints: 43200
+              instant: true
+
+      - uid: futurekawa-backend-down
+        title: FutureKawa backend indisponible
+        condition: C
+        for: 2m
+        noDataState: Alerting
+        execErrState: Alerting
+        annotations:
+          summary: "Backend indisponible: {{ $labels.job }}"
+          description: "Au moins un backend FutureKawa ne répond plus à Prometheus"
+        labels:
+          severity: critical
+          service: futurekawa
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 180
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: avg by (job) (up{job=~"backend-(mother|child).*"})
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+              instant: true
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: classic_conditions
+              refId: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: lt
+                    params:
+                      - 1
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+                    params: []
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: $B
+              refId: C
+              intervalMs: 1000
+              maxDataPoints: 43200
+              instant: true

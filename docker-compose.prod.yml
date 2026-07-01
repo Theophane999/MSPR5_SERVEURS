@@ -60,7 +60,7 @@ services:
     image: futurekawa/backend-mother:${DEPLOY_TAG:-prod}
     restart: always
     environment:
-      APP_CHILDREN_SERVICES: ${APP_CHILDREN:-brazil=http://backend-child:8080}
+      APP_CHILDREN_SERVICES: ${APP_CHILDREN:-brazil=http://backend-child:3000}
       APP_ALERT_THRESHOLD_TEMP_MIN: ${ALERT_TEMP_MIN:-15}
       APP_ALERT_THRESHOLD_TEMP_MAX: ${ALERT_TEMP_MAX:-30}
       APP_ALERT_THRESHOLD_HUMIDITE_MIN: ${ALERT_HUM_MIN:-45}
@@ -68,7 +68,7 @@ services:
     depends_on:
       - backend-child
     ports:
-      - "3200:8080"
+      - "3200:3000"
     networks:
       - futurekawa-net
     logging:
@@ -82,7 +82,7 @@ services:
     image: futurekawa/frontend:${DEPLOY_TAG:-prod}
     restart: always
     environment:
-      BACKEND_MOTHER_URL: ${BACKEND_MOTHER_PUBLIC_URL:-http://backend-mother:8080}
+      BACKEND_MOTHER_URL: ${BACKEND_MOTHER_PUBLIC_URL:-http://backend-mother:3000}
     ports:
       - "80:80"
       - "443:443"
@@ -96,8 +96,47 @@ services:
         max-size: "20m"
         max-file: "10"
 
+  prometheus:
+    image: prom/prometheus:v2.55.1
+    restart: always
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+    volumes:
+      - ./monitoring/prometheus/prod/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "9090:9090"
+    depends_on:
+      - backend-mother
+      - backend-child
+    networks:
+      - futurekawa-net
+
+  grafana:
+    image: grafana/grafana-oss:11.1.4
+    restart: always
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_AUTH_ANONYMOUS_ENABLED: "false"
+      GF_FEATURE_TOGGLES_ENABLE: alerting
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - futurekawa-net
+
 volumes:
   db-prod-data:
+  prometheus-data:
+  grafana-data:
 
 networks:
   futurekawa-net:

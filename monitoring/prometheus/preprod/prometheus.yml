@@ -1,0 +1,28 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: backend-mother
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - backend-mother:3000
+
+  - job_name: backend-child-brazil
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - backend-child-brazil:3000
+
+  - job_name: backend-child-ecuador
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - backend-child-ecuador:3000
+
+  - job_name: backend-child-colombia
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets:
+          - backend-child-colombia:3000

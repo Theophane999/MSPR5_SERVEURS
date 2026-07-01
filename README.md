@@ -156,6 +156,30 @@ Frontend demo:
 
 - Mode Docker/Nginx: http://localhost:8080
 - Mode dev Angular (hot reload): http://localhost:4300 via `./dev-start.ps1`
+- Prometheus: http://localhost:9090
+- Grafana: http://localhost:3001
+
+Identifiants Grafana par défaut:
+
+- utilisateur: `admin`
+- mot de passe: `admin`
+
+Grafana est pré-provisionné avec une source de données Prometheus. Tu peux y créer des dashboards et des règles d’alerting pour surveiller les métriques exposées par les backends via `/actuator/prometheus`.
+
+Un dashboard de base `FutureKawa Overview` est aussi provisionné automatiquement avec :
+
+- CPU système
+- mémoire heap
+- threads actifs
+- requêtes HTTP par seconde
+- répartition des réponses HTTP
+- latence HTTP max
+
+Des règles d’alerte Grafana sont aussi provisionnées pour :
+
+- CPU backend > 75%
+- heap backend > 85%
+- backend indisponible (`up = 0`)
 
 Detruire l'infra :
 
