@@ -364,12 +364,13 @@
       <div class="lots-split" *ngIf="selectedCountryLots.length; else noLot">
         <div class="lots-list">
           <button type="button" class="lot-row"
-            *ngFor="let lot of selectedCountryLots"
+            *ngFor="let lot of selectedCountryLots; trackBy: trackByLotId"
             [class.active]="selectedLot?.id === lot.id"
             [ngClass]="'status-' + lot.status"
             (click)="selectLot(lot.id)">
             <div>
-              <strong>{{ lot.variete || ('Lot ' + lot.id) }}</strong>
+              <strong>{{ lot.lotReference || ('Lot ' + lot.id) }}</strong>
+              <small *ngIf="lot.variete">{{ lot.variete }}</small>
               <small>{{ lot.storageDate }}</small>
             </div>
             <span class="lot-status-chip">{{ lotStatusLabel(lot.status) }}</span>
@@ -378,7 +379,7 @@
 
         <div class="lot-detail" *ngIf="selectedLot as lot">
           <div class="panel-head">
-            <div><p class="panel-label">Détail lot</p><h3>Lot {{ lot.id }}</h3></div>
+            <div><p class="panel-label">Détail lot</p><h3>Lot {{ lot.lotReference || lot.id }}</h3></div>
             <span class="badge" [ngClass]="'badge-' + lot.status">{{ lotStatusLabel(lot.status) }}</span>
           </div>
           <div class="lot-meta">

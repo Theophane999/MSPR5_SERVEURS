@@ -18,6 +18,8 @@ export class AppComponent implements OnInit, OnDestroy {
   private readonly dashboardService = inject(DashboardService);
   private refreshTimer?: ReturnType<typeof setInterval>;
   private countdownTimer?: ReturnType<typeof setInterval>;
+  private pendingScrollTop?: number;
+  private pendingScrollSelector?: string;
 
   protected readonly chartWidth = 560;
   protected readonly chartHeight = 220;
@@ -372,6 +374,10 @@ export class AppComponent implements OnInit, OnDestroy {
     return child.name;
   }
 
+  protected trackByLotId(_index: number, lot: LotView): string {
+    return lot.id;
+  }
+
   protected get sensorActiveCount(): number {
     return this.children.filter(c => c.sensorData?.available).length;
   }
@@ -421,9 +427,11 @@ export class AppComponent implements OnInit, OnDestroy {
           }
 
           this.fillFormFromSelectedLot();
+          this.restoreScrollPosition();
         },
         error: (error: { message?: string }) => {
           this.errorMessage = error.message ?? 'Erreur inconnue';
+          this.restoreScrollPosition();
         },
       });
   }
@@ -441,6 +449,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.dashboardService.createLot(selected.url, this.buildPayloadForCreate()).subscribe({
       next: () => {
         this.lotActionMessage = 'Lot ajoute avec succes';
+        this.captureScrollPosition('.lot-crud');
         this.refresh();
       },
       error: (error: { message?: string }) => {
@@ -458,11 +467,12 @@ export class AppComponent implements OnInit, OnDestroy {
 
     this.lotActionMessage = undefined;
     this.lotActionError = undefined;
+    const payload = this.buildPayloadForUpdate();
 
-    this.dashboardService.updateLot(selected.url, this.selectedLotId, this.buildPayloadForUpdate()).subscribe({
+    this.dashboardService.updateLot(selected.url, this.selectedLotId, payload).subscribe({
       next: () => {
         this.lotActionMessage = 'Lot mis a jour';
-        this.refresh();
+        this.applyLotUpdateLocally(this.selectedLotId!, payload);
       },
       error: (error: { message?: string }) => {
         this.lotActionError = error.message ?? 'Echec mise a jour lot';
@@ -484,6 +494,7 @@ export class AppComponent implements OnInit, OnDestroy {
       next: () => {
         this.lotActionMessage = 'Lot supprime';
         this.selectedLotId = undefined;
+        this.captureScrollPosition('.lot-crud');
         this.refresh();
       },
       error: (error: { message?: string }) => {
@@ -498,13 +509,14 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private fillFormFromSelectedLot(): void {
     const lot = this.selectedLot;
+
     if (!lot) {
       this.lotForm = this.emptyLotForm();
       return;
     }
 
     this.lotForm = {
-      lotReference: lot.id,
+      lotReference: lot.lotReference ?? lot.id,
       datePeremption: lot.datePeremption ?? null,
       variete: lot.variete ?? '',
       process: lot.process ?? '',
@@ -515,6 +527,44 @@ export class AppComponent implements OnInit, OnDestroy {
       storageDate: lot.storageDate ?? '',
       idExploitation: null,
     };
+  }
+
+  private captureScrollPosition(selector?: string): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    this.pendingScrollTop = window.scrollY;
+    this.pendingScrollSelector = selector;
+  }
+
+  private restoreScrollPosition(): void {
+    if (typeof window === 'undefined' || this.pendingScrollTop === undefined) {
+      return;
+    }
+
+    const scrollTop = this.pendingScrollTop;
+    const selector = this.pendingScrollSelector;
+    this.pendingScrollTop = undefined;
+    this.pendingScrollSelector = undefined;
+
+    const restore = () => {
+      if (selector) {
+        const target = document.querySelector(selector);
+        if (target instanceof HTMLElement) {
+          target.scrollIntoView({ block: 'start' });
+          return;
+        }
+      }
+
+      window.scrollTo({ top: scrollTop });
+    };
+
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        restore();
+      });
+    });
   }
 
   private buildPayloadForCreate(): LotUpsertPayload {
@@ -534,6 +584,45 @@ export class AppComponent implements OnInit, OnDestroy {
 
   private buildPayloadForUpdate(): LotUpsertPayload {
     return this.buildPayloadForCreate();
+  }
+
+  private applyLotUpdateLocally(lotId: string, payload: LotUpsertPayload): void {
+    const selectedCountry = this.selectedCountry;
+    if (!selectedCountry?.lots?.length) {
+      return;
+    }
+
+    const updatedLots = selectedCountry.lots.map((lot) => {
+      if (lot.id !== lotId) {
+        return lot;
+      }
+
+      return {
+        ...lot,
+        lotReference: payload.lotReference ?? lot.lotReference,
+        storageDate: payload.storageDate ?? lot.storageDate,
+        variete: payload.variete ?? lot.variete,
+        process: payload.process ?? lot.process,
+        scoreSca: payload.scoreSca ?? lot.scoreSca,
+        poidsKg: payload.poidsKg ?? lot.poidsKg,
+        qualite: payload.qualite ?? lot.qualite,
+        quantite: payload.quantite ?? lot.quantite,
+        datePeremption: payload.datePeremption ?? lot.datePeremption,
+      } satisfies LotView;
+    });
+
+    this.children = this.children.map((child) => {
+      if (child.name !== selectedCountry.name) {
+        return child;
+      }
+
+      return {
+        ...child,
+        lots: updatedLots,
+      };
+    });
+
+    this.fillFormFromSelectedLot();
   }
 
   private emptyLotForm() {
