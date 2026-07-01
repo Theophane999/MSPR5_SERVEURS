@@ -1088,12 +1088,19 @@ export class AppComponent implements OnInit, OnDestroy {
 
     const availableLots = this.selectedCountryLots;
 
-    const matches = Array.from(raw.matchAll(/([^\s,;:]+)\s*:\s*(\d+(?:\.\d+)?)/g));
+    return raw
+      .split(/[\n,;]+/)
+      .map((entry) => entry.trim())
+      .filter(Boolean)
+      .map((entry) => {
+        const separatorIndex = entry.indexOf(':');
+        if (separatorIndex <= 0) {
+          return { lotId: Number.NaN, quantiteExpediee: Number.NaN };
+        }
 
-    return matches
-      .map((match) => {
-        const lotIdentifierRaw = match[1]?.trim();
-        const quantiteRaw = match[2]?.trim();
+        const lotIdentifierRaw = entry.slice(0, separatorIndex).trim();
+        const quantiteRaw = entry.slice(separatorIndex + 1).trim().replace(',', '.');
+
         return {
           lotId: this.resolveLotIdentifier(lotIdentifierRaw, availableLots),
           quantiteExpediee: Number(quantiteRaw),
