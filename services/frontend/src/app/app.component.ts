@@ -1,38 +1,61 @@
 import { DatePipe, DecimalPipe, NgClass, NgFor, NgIf } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
-import { ChildStatus, DashboardResponse, ExpeditionView, HistoryPoint, LotView } from './models/dashboard.model';
+import { AlertView, ChildStatus, DashboardResponse, ExpeditionView, HistoryPoint, LotView } from './models/dashboard.model';
 import { DashboardService } from './services/dashboard.service';
+import { TemperatureChartComponent } from './components/temperature-chart.component';
+import { filterLots, filterExpeditions, LotFilter, ExpeditionFilter } from './utils/filters';
+import { ThemeService } from './services/theme.service';
+
+export type DetailTab = 'sensors' | 'stocks' | 'expeditions' | 'alerts';
+export type UserMode = 'terrain' | 'siege';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [NgFor, NgIf, NgClass, DatePipe, DecimalPipe],
+  imports: [NgFor, NgIf, NgClass, DatePipe, DecimalPipe, TemperatureChartComponent, FormsModule],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
 export class AppComponent implements OnInit, OnDestroy {
   private readonly dashboardService = inject(DashboardService);
+  private readonly themeService = inject(ThemeService);
   private refreshTimer?: ReturnType<typeof setInterval>;
+  private countdownTimer?: ReturnType<typeof setInterval>;
 
   protected readonly chartWidth = 560;
   protected readonly chartHeight = 220;
+  protected readonly refreshIntervalSeconds = 300;
 
   protected loading = true;
-  protected apiUrl = `${this.dashboardService.motherUrl()}/api/children`;
+  protected apiStatus = 'Initialisation'; // Statut au lieu de l'URL en dur
   protected aggregatedAt?: string;
   protected children: ChildStatus[] = [];
   protected errorMessage?: string;
   protected selectedCountryName?: string;
   protected selectedLotId?: string;
+  protected activeTab: DetailTab = 'sensors';
+  protected nextRefreshIn = 300;
+  protected userMode: UserMode = 'terrain';
+  protected showAlertBanner = true;
+  // Filters
+  protected stockFilter: LotFilter = { status: 'all', query: '', fromDate: '', toDate: '' };
+  protected expeditionFilter: ExpeditionFilter = { status: 'all', query: '', fromDate: '', toDate: '' };
 
   ngOnInit(): void {
     this.refresh();
-    this.refreshTimer = setInterval(() => this.refresh(), 300_000);
+    this.refreshTimer = setInterval(() => this.refresh(), this.refreshIntervalSeconds * 1000);
+    this.countdownTimer = setInterval(() => {
+      this.nextRefreshIn = this.nextRefreshIn > 0 ? this.nextRefreshIn - 1 : this.refreshIntervalSeconds;
+    }, 1000);
+    // ensure theme applied from service
+    this.themeService.current();
   }
 
   ngOnDestroy(): void {
     clearInterval(this.refreshTimer);
+    clearInterval(this.countdownTimer);
   }
 
   protected get onlineCount(): number {
@@ -77,7 +100,7 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     if (this.cockpitTone === 'stable') {
-      return 'Plateforme stable sur l ensemble des pays';
+      return 'Supervision stable sur l ensemble des pays';
     }
 
     if (this.cockpitTone === 'critical') {
@@ -130,10 +153,19 @@ export class AppComponent implements OnInit, OnDestroy {
   protected selectCountry(countryName: string): void {
     this.selectedCountryName = countryName;
     this.selectedLotId = this.selectedCountryLots[0]?.id;
+    this.activeTab = 'sensors';
+  }
+
+  protected selectTab(tab: DetailTab): void {
+    this.activeTab = tab;
   }
 
   protected selectLot(lotId: string): void {
     this.selectedLotId = lotId;
+  }
+
+  protected switchUserMode(mode: UserMode): void {
+    this.userMode = mode;
   }
 
   protected get selectedCountry(): ChildStatus | undefined {
@@ -157,6 +189,10 @@ export class AppComponent implements OnInit, OnDestroy {
     return [...(this.selectedCountry?.lots ?? [])].sort((a, b) => b.storageDate.localeCompare(a.storageDate));
   }
 
+  protected get filteredCountryLots(): LotView[] {
+    return filterLots(this.selectedCountryLots, this.stockFilter);
+  }
+
   protected get selectedLot(): LotView | undefined {
     const lots = this.selectedCountryLots;
     if (!lots.length) {
@@ -176,6 +212,10 @@ export class AppComponent implements OnInit, OnDestroy {
 
   protected get selectedCountryExpeditions(): ExpeditionView[] {
     return [...(this.selectedCountry?.expeditions ?? [])].sort((a, b) => b.departAt.localeCompare(a.departAt));
+  }
+
+  protected get filteredCountryExpeditions(): ExpeditionView[] {
+    return filterExpeditions(this.selectedCountryExpeditions, this.expeditionFilter);
   }
 
   protected get selectedCountryStockState() {
@@ -206,6 +246,98 @@ export class AppComponent implements OnInit, OnDestroy {
     return (stock.criticalLots / stock.totalLots) * 100;
   }
 
+  // ── Global KPIs ──────────────────────────────────────────────────
+
+  protected get globalTotalLots(): number {
+    return this.children.reduce((sum, c) => sum + (c.stockState?.totalLots ?? 0), 0);
+  }
+
+  protected get globalCriticalLots(): number {
+    return this.children.reduce((sum, c) => sum + (c.stockState?.criticalLots ?? 0), 0);
+  }
+
+  protected get globalTotalExpeditions(): number {
+    return this.children.reduce((sum, c) => sum + (c.expeditions?.length ?? 0), 0);
+  }
+
+  protected get globalCriticalAlerts(): AlertView[] {
+    return this.children.flatMap(c => c.alerts ?? []).filter(a => a.level === 'critical');
+  }
+
+  protected get globalAlertsBanner(): AlertView[] {
+    return this.globalCriticalAlerts.slice(0, 5);
+  }
+
+  protected get countryTabAlertCount(): number {
+    return (this.selectedCountry?.alerts ?? []).length;
+  }
+
+  protected get countryTabExpeditionCount(): number {
+    return (this.selectedCountry?.expeditions ?? []).length;
+  }
+
+  protected get countryTabLotsCount(): number {
+    return this.selectedCountryLots.length;
+  }
+
+  // ── Chart helpers ────────────────────────────────────────────────
+
+  protected get chartYMin(): number {
+    const temps = this.selectedHistoryPoints.map(p => p.temperature).filter((v): v is number => v != null);
+    const hums  = this.selectedHistoryPoints.map(p => p.humidite).filter((v): v is number => v != null);
+    return Math.floor(Math.min(...temps, ...hums, 0));
+  }
+
+  protected get chartYMax(): number {
+    const temps = this.selectedHistoryPoints.map(p => p.temperature).filter((v): v is number => v != null);
+    const hums  = this.selectedHistoryPoints.map(p => p.humidite).filter((v): v is number => v != null);
+    return Math.ceil(Math.max(...temps, ...hums, 100));
+  }
+
+  protected toChartPathScaled(kind: 'temperature' | 'humidite'): string {
+    const points = this.selectedHistoryPoints;
+    if (points.length < 2) return '';
+
+    const values = points.map(p => kind === 'temperature' ? p.temperature : p.humidite)
+                         .filter((v): v is number => v != null);
+    if (values.length < 2) return '';
+
+    const yMin = this.chartYMin;
+    const yMax = this.chartYMax;
+    const span = yMax - yMin || 1;
+    const stepX = this.chartWidth / (points.length - 1);
+
+    return points.map((p, i) => {
+      const val = (kind === 'temperature' ? p.temperature : p.humidite) ?? yMin;
+      const x = i * stepX;
+      const y = this.chartHeight - ((val - yMin) / span) * this.chartHeight;
+      return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`;
+    }).join(' ');
+  }
+
+  protected get chartGridLines(): { y: number; label: string }[] {
+    const yMin = this.chartYMin;
+    const yMax = this.chartYMax;
+    const span = yMax - yMin || 1;
+    const step = Math.ceil(span / 4);
+    const lines = [];
+    for (let v = yMin; v <= yMax; v += step) {
+      const y = this.chartHeight - ((v - yMin) / span) * this.chartHeight;
+      lines.push({ y: parseFloat(y.toFixed(1)), label: String(v) });
+    }
+    return lines;
+  }
+
+  protected get expeditionStatusClass(): (statut: string) => string {
+    return (statut: string) => {
+      const s = statut?.toLowerCase();
+      if (s === 'livree' || s === 'livre' || s === 'delivered') return 'exp-ok';
+      if (s === 'en_transit' || s === 'en transit' || s === 'transit') return 'exp-transit';
+      if (s === 'annulee' || s === 'annule' || s === 'cancelled') return 'exp-cancelled';
+      return 'exp-pending';
+    };
+  }
+
   protected get selectedHistoryPoints(): HistoryPoint[] {
     return [...(this.selectedCountry?.history ?? [])].sort((a, b) => a.date.localeCompare(b.date));
   }
@@ -232,36 +364,6 @@ export class AppComponent implements OnInit, OnDestroy {
       criticalLots: stock?.criticalLots ?? 0,
       lastPoint,
     };
-  }
-
-  protected toChartPath(kind: 'temperature' | 'humidite'): string {
-    const points = this.selectedHistoryPoints;
-    if (points.length < 2) {
-      return '';
-    }
-
-    const values = points
-      .map((point) => (kind === 'temperature' ? point.temperature : point.humidite))
-      .filter((value): value is number => value !== null && value !== undefined);
-
-    if (values.length < 2) {
-      return '';
-    }
-
-    const min = Math.min(...values);
-    const max = Math.max(...values);
-    const span = max - min || 1;
-    const stepX = this.chartWidth / (points.length - 1);
-
-    return points
-      .map((point, index) => {
-        const value = kind === 'temperature' ? point.temperature : point.humidite;
-        const safeValue = value ?? min;
-        const x = index * stepX;
-        const y = this.chartHeight - ((safeValue - min) / span) * this.chartHeight;
-        return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
-      })
-      .join(' ');
   }
 
   protected lotStatusLabel(status: 'ok' | 'warning' | 'critical'): string {
@@ -296,9 +398,31 @@ export class AppComponent implements OnInit, OnDestroy {
     return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
   }
 
+  // ── User Mode & Alert Management ─────────────────────────────
+
+  protected get quickAlerts(): AlertView[] {
+    // Pour le terrain: uniquement les alertes critiques du pays sélectionné
+    // Pour le siège: les 5 premières alertes critiques globales
+    if (this.userMode === 'terrain') {
+      return (this.selectedCountry?.alerts ?? []).filter(a => a.level === 'critical').slice(0, 3);
+    } else {
+      return this.globalCriticalAlerts.slice(0, 5);
+    }
+  }
+
+  protected get hasUrgentAlerts(): boolean {
+    return this.quickAlerts.length > 0;
+  }
+
+  protected dismissAlertBanner(): void {
+    this.showAlertBanner = false;
+  }
+
   protected refresh(): void {
     this.loading = true;
     this.errorMessage = undefined;
+    this.nextRefreshIn = this.refreshIntervalSeconds;
+    this.apiStatus = 'Synchronisation...';
 
     this.dashboardService
       .loadDashboard()
@@ -307,6 +431,7 @@ export class AppComponent implements OnInit, OnDestroy {
         next: (payload: DashboardResponse) => {
           this.children = payload.children;
           this.aggregatedAt = payload.aggregatedAt;
+          this.apiStatus = 'Connecté'; // Succès
 
           if (!this.children.length) {
             this.selectedCountryName = undefined;
@@ -327,6 +452,7 @@ export class AppComponent implements OnInit, OnDestroy {
         },
         error: (error: { message?: string }) => {
           this.errorMessage = error.message ?? 'Erreur inconnue';
+          this.apiStatus = 'Erreur de connexion'; // Statut d'erreur
         },
       });
   }
