@@ -222,7 +222,7 @@ set -e
 
 if [ ! -d /opt/futurekawa/.git ]; then
   sudo mkdir -p /opt/futurekawa || true
-  sudo chown "$USER":"$USER" /opt/futurekawa || true
+  sudo chown "\$USER":"\$USER" /opt/futurekawa || true
   git clone https://github.com/Theophane999/MSPR5_SERVEURS.git /opt/futurekawa
 fi
 
