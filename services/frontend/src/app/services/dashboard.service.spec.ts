@@ -73,7 +73,40 @@ describe('DashboardService', () => {
     const request = http.expectOne((req) => req.url.endsWith('/api/expeditions'));
     expect(request.request.method).toBe('POST');
     expect(request.request.body.lots.length).toBe(1);
+    expect(request.request.url).toContain('localhost:3101');
     request.flush({ id: 99 });
+    http.verify();
+  });
+
+  it('maps docker child hostnames and strips extra paths for lot CRUD endpoints', () => {
+    (window as Window & { __env?: { backendMotherUrl?: string } }).__env = {
+      backendMotherUrl: 'http://example.test:3200/',
+    };
+
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting(), DashboardService],
+    });
+
+    const service = TestBed.inject(DashboardService);
+    const http = TestBed.inject(HttpTestingController);
+
+    service.createLot('http://backend-child-colombia:3000/api/info', {
+      lotReference: 'CO-TEST-001',
+      storageDate: '2026-07-02',
+    }).subscribe();
+
+    const mappedRequest = http.expectOne((req) => req.url === 'http://localhost:3103/api/lots');
+    expect(mappedRequest.request.method).toBe('POST');
+    mappedRequest.flush({ id: 1 });
+
+    service.updateLot('http://127.0.0.1:3999/api/info', '42', {
+      qualite: 'A',
+    }).subscribe();
+
+    const normalizedRequest = http.expectOne((req) => req.url === 'http://127.0.0.1:3999/api/lots/42');
+    expect(normalizedRequest.request.method).toBe('PUT');
+    normalizedRequest.flush({ ok: true });
+
     http.verify();
   });
 });
