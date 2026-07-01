@@ -987,7 +987,7 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     if (!payload.lots?.length) {
-      return 'Composition lots invalide: utilise "lotId:quantite" ou "lotReference:quantite"';
+      return 'Composition lots invalide: utilise soit "lotId:quantite", soit "lotReference:quantite" (ex: 12:80 ou BR-24-0099:80)';
     }
 
     const hasInvalidLot = payload.lots.some((lot) => {
@@ -999,7 +999,7 @@ export class AppComponent implements OnInit, OnDestroy {
     });
 
     if (hasInvalidLot) {
-      return 'Composition lots invalide: chaque lot doit avoir un identifiant/reference et une quantite > 0';
+      return 'Composition lots invalide: chaque ligne doit etre au format "identifiant:quantite" avec une quantite > 0';
     }
 
     return undefined;
@@ -1108,15 +1108,23 @@ export class AppComponent implements OnInit, OnDestroy {
       return Number.NaN;
     }
 
+    const fromLabelMatch = raw.match(/(?:lot\s*#?\s*)(\d+)/i);
+    if (fromLabelMatch?.[1]) {
+      const parsed = Number(fromLabelMatch[1]);
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+
     const numericId = Number(raw);
     if (Number.isFinite(numericId)) {
       return numericId;
     }
 
-    const normalized = raw.toLowerCase();
+    const normalized = this.normalizeLotToken(raw);
     const found = availableLots.find((lot) => {
-      const lotRef = lot.lotReference?.toLowerCase();
-      const lotId = String(lot.id).toLowerCase();
+      const lotRef = this.normalizeLotToken(lot.lotReference ?? '');
+      const lotId = this.normalizeLotToken(String(lot.id));
       return lotRef === normalized || lotId === normalized;
     });
 
@@ -1125,6 +1133,14 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     return Number(found.id);
+  }
+
+  private normalizeLotToken(value: string): string {
+    return value
+      .toLowerCase()
+      .trim()
+      .replace(/^#/, '')
+      .replace(/[^a-z0-9]/g, '');
   }
 
   private serializeExpeditionLots(lots: { lotId: number; quantiteExpediee: number | null }[]): string {
