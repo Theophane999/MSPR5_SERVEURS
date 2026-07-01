@@ -294,6 +294,65 @@ dt {
   word-break: break-word;
 }
 
+.connection-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  font-family: 'Sora', 'Space Grotesk', sans-serif;
+  font-size: 0.8rem;
+}
+
+.connection-status::before {
+  content: '';
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.connection-ok {
+  color: #9fd7b4;
+  border-color: rgba(159, 215, 180, 0.45);
+  background: rgba(159, 215, 180, 0.1);
+}
+
+.connection-ok::before {
+  background: #9fd7b4;
+}
+
+.connection-warning {
+  color: #f0cd8b;
+  border-color: rgba(240, 205, 139, 0.45);
+  background: rgba(240, 205, 139, 0.1);
+}
+
+.connection-warning::before {
+  background: #f0cd8b;
+}
+
+.connection-error {
+  color: #ff9a8b;
+  border-color: rgba(255, 154, 139, 0.45);
+  background: rgba(255, 154, 139, 0.1);
+}
+
+.connection-error::before {
+  background: #ff9a8b;
+}
+
+.connection-pending {
+  color: #d49a57;
+  border-color: rgba(212, 154, 87, 0.45);
+  background: rgba(212, 154, 87, 0.12);
+}
+
+.connection-pending::before {
+  background: #d49a57;
+}
+
 .hero-orbit {
   position: relative;
   display: grid;

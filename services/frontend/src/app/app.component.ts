@@ -188,6 +188,46 @@ export class AppComponent implements OnInit, OnDestroy {
     return this.cockpitTone === 'stable' ? 'NOMINAL' : 'PARTIEL';
   }
 
+  protected get motherConnectionLabel(): string {
+    if (this.loading) {
+      return 'Connexion en cours';
+    }
+
+    if (this.errorMessage) {
+      return 'Déconnecté';
+    }
+
+    if (this.totalCount === 0) {
+      return 'Aucun noeud détecté';
+    }
+
+    if (this.offlineCount === 0) {
+      return 'Connecté';
+    }
+
+    if (this.onlineCount === 0) {
+      return 'Hors ligne';
+    }
+
+    return 'Connexion partielle';
+  }
+
+  protected get motherConnectionClass(): 'connection-pending' | 'connection-ok' | 'connection-warning' | 'connection-error' {
+    if (this.loading) {
+      return 'connection-pending';
+    }
+
+    if (this.errorMessage || this.onlineCount === 0) {
+      return 'connection-error';
+    }
+
+    if (this.offlineCount > 0) {
+      return 'connection-warning';
+    }
+
+    return 'connection-ok';
+  }
+
   protected displayCountry(child: ChildStatus): string {
     if (child.data?.country) {
       return child.data.country;

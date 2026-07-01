@@ -18,7 +18,7 @@
         <button type="button" (click)="refresh()">Relancer le scan</button>
         <div class="hero-meta">
           <span>Backend mère</span>
-          <strong>{{ apiUrl }}</strong>
+          <strong class="connection-status" [ngClass]="motherConnectionClass" [title]="apiUrl">{{ motherConnectionLabel }}</strong>
         </div>
         <div class="hero-meta" *ngIf="!loading">
           <span>Prochain refresh</span>
@@ -102,8 +102,8 @@
           <strong>mother</strong>
         </div>
         <div>
-          <span>Source</span>
-          <strong>{{ apiUrl }}</strong>
+          <span>Connexion</span>
+          <strong class="connection-status" [ngClass]="motherConnectionClass" [title]="apiUrl">{{ motherConnectionLabel }}</strong>
         </div>
         <div>
           <span>Mode</span>
