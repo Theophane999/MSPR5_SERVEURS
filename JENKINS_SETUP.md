@@ -30,6 +30,37 @@ Dans Jenkins:
 2. Type: Username with password ou Personal Access Token
 3. ID conseille: github-credentials
 
+## 3.bis) Credentials requis pour Jenkinsfile.docker (IDs exacts)
+
+Si tu utilises [Jenkinsfile.docker](Jenkinsfile.docker), cree ces credentials avec les IDs exacts:
+
+- `github-credentials` (Username with password ou Secret text PAT) pour l'acces au repo GitHub
+- `ssh-prod-server` (SSH Username with private key) utilisateur + cle privee de la VM/serveur prod
+
+Mode de deploiement actuel: pas de push vers un registry Docker.
+Le deploy `main` fait un `git pull` puis un `docker compose up -d --build` via SSH sur plusieurs VMs en une seule execution.
+
+Premier deploiement (VM vide): le pipeline bootstrap automatiquement la VM cible.
+S'il ne trouve pas `/opt/futurekawa/.git`, il cree `/opt/futurekawa`, clone le repo, puis lance le deploiement.
+
+Les VMs cibles sont configurees dans les parametres du job Jenkins (Build with Parameters):
+
+- `PROD_HOST_MOTHER`
+- `PROD_HOST_BRAZIL`
+- `PROD_HOST_COLOMBIA`
+- `PROD_HOST_ECUADOR`
+- `PROD_HOST_JENKINS` (optionnel)
+
+Renseigne au moins un `PROD_HOST_*`.
+
+Prerequis minimum sur chaque VM cible:
+
+- Docker + Docker Compose installes
+- acces reseau sortant vers GitHub
+- utilisateur SSH autorise a executer Docker (et sudo pour creer `/opt/futurekawa` au premier run)
+
+Note: ce pipeline ne fait pas de provisionnement GCP par Terraform. Il deploie via SSH sur un hote deja provisionne.
+
 ## 4) Job recommande: Multibranch Pipeline
 
 1. New Item -> MSPR5_SERVEURS-CI -> Multibranch Pipeline
@@ -116,6 +147,14 @@ Le pipeline expose des parametres modifiables sans edition du Jenkinsfile:
 - `PROD_CHILD_HEALTH_BRAZIL`
 - `PROD_CHILD_HEALTH_COLOMBIA`
 - `PROD_CHILD_HEALTH_ECUADOR`
+
+Il expose aussi les hotes de deploiement multi-VM:
+
+- `PROD_HOST_MOTHER`
+- `PROD_HOST_BRAZIL`
+- `PROD_HOST_COLOMBIA`
+- `PROD_HOST_ECUADOR`
+- `PROD_HOST_JENKINS` (optionnel)
 
 Par defaut ils pointent vers le domaine `future-kawa.online`.
 Si la propagation DNS n'est pas terminee, remplace temporairement par les IP publiques GCP au lancement du build.

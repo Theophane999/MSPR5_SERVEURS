@@ -18,6 +18,11 @@ pipeline {
     string(name: 'PROD_CHILD_HEALTH_BRAZIL', defaultValue: 'http://brazil.future-kawa.online:3000/health', description: 'Brazil child health URL used by post-deploy smoke tests')
     string(name: 'PROD_CHILD_HEALTH_COLOMBIA', defaultValue: 'http://colombia.future-kawa.online:3000/health', description: 'Colombia child health URL used by post-deploy smoke tests')
     string(name: 'PROD_CHILD_HEALTH_ECUADOR', defaultValue: 'http://ecuador.future-kawa.online:3000/health', description: 'Ecuador child health URL used by post-deploy smoke tests')
+    string(name: 'PROD_HOST_MOTHER', defaultValue: '', description: 'Production host/IP for mother VM')
+    string(name: 'PROD_HOST_BRAZIL', defaultValue: '', description: 'Production host/IP for Brazil VM')
+    string(name: 'PROD_HOST_COLOMBIA', defaultValue: '', description: 'Production host/IP for Colombia VM')
+    string(name: 'PROD_HOST_ECUADOR', defaultValue: '', description: 'Production host/IP for Ecuador VM')
+    string(name: 'PROD_HOST_JENKINS', defaultValue: '', description: 'Optional production host/IP for Jenkins VM')
   }
 
   environment {
@@ -31,6 +36,39 @@ pipeline {
         checkout scm
         sh 'git sparse-checkout disable || true'
         stash name: 'workspace-src', includes: '**/*', useDefaultExcludes: false
+      }
+    }
+
+    stage('Credentials Preflight (Main)') {
+      agent any
+      when {
+        branch 'main'
+      }
+      steps {
+        script {
+          def deployHosts = [
+            params.PROD_HOST_MOTHER,
+            params.PROD_HOST_BRAZIL,
+            params.PROD_HOST_COLOMBIA,
+            params.PROD_HOST_ECUADOR,
+            params.PROD_HOST_JENKINS
+          ].collect { it?.trim() }.findAll { it }
+
+          if (deployHosts.isEmpty()) {
+            error('No production hosts configured. Fill at least one PROD_HOST_* parameter in the Jenkins job.')
+          }
+
+          echo "Deploy targets: ${deployHosts.join(', ')}"
+        }
+
+        withCredentials([
+          sshUserPrivateKey(credentialsId: 'ssh-prod-server', keyFileVariable: 'SSH_KEY_FILE', usernameVariable: 'SSH_USER')
+        ]) {
+          sh '''
+            test -n "$SSH_USER"
+            test -f "$SSH_KEY_FILE"
+          '''
+        }
       }
     }
 
@@ -82,7 +120,7 @@ pipeline {
       }
     }
 
-    stage('Docker Build & Tag') {
+    stage('Docker Build (No Registry Push)') {
       agent any
       when {
         anyOf {
@@ -105,30 +143,9 @@ pipeline {
           """
 
           if (isBranchProd) {
-            withCredentials([
-              string(credentialsId: 'docker-registry-url', variable: 'REGISTRY'),
-              usernamePassword(credentialsId: 'docker-registry-credentials', usernameVariable: 'REGISTRY_USER', passwordVariable: 'REGISTRY_PASS')
-            ]) {
-              sh """
-                echo "\$REGISTRY_PASS" | docker login "\$REGISTRY" -u "\$REGISTRY_USER" --password-stdin
-                docker push futurekawa/backend-child:${tag}
-                docker push futurekawa/backend-mother:${tag}
-                docker push futurekawa/frontend:${tag}
-              """
-              if (isBranchProd) {
-                sh """
-                  docker tag futurekawa/backend-child:prod futurekawa/backend-child:${env.IMAGE_TAG}
-                  docker tag futurekawa/backend-mother:prod futurekawa/backend-mother:${env.IMAGE_TAG}
-                  docker tag futurekawa/frontend:prod futurekawa/frontend:${env.IMAGE_TAG}
-                  docker push futurekawa/backend-child:${env.IMAGE_TAG}
-                  docker push futurekawa/backend-mother:${env.IMAGE_TAG}
-                  docker push futurekawa/frontend:${env.IMAGE_TAG}
-                """
-              }
-              sh 'docker logout "$REGISTRY" || true'
-            }
+            echo 'Main: registry push disabled; deployment builds on production hosts via SSH.'
           } else if (isBranchPreprod) {
-            echo 'Pre-prod: registry push skipped (local smoke only).'
+            echo 'Pre-prod: local image build only.'
           }
         }
       }
@@ -180,17 +197,47 @@ pipeline {
       when {
         branch 'main'
       }
-      environment {
-        SSH_PROD  = credentials('ssh-prod-server')
-        PROD_HOST = credentials('prod-host')
-      }
       steps {
-        sh """
-          ssh -o StrictHostKeyChecking=no -i \$SSH_PROD \$PROD_HOST \\
-            'cd /opt/futurekawa && \\
-             DEPLOY_TAG=prod docker compose -f docker-compose.prod.yml pull && \\
-             DEPLOY_TAG=prod docker compose -f docker-compose.prod.yml up -d --remove-orphans'
-        """
+        script {
+          def deployHosts = [
+            params.PROD_HOST_MOTHER,
+            params.PROD_HOST_BRAZIL,
+            params.PROD_HOST_COLOMBIA,
+            params.PROD_HOST_ECUADOR,
+            params.PROD_HOST_JENKINS
+          ].collect { it?.trim() }.findAll { it }.unique()
+
+          if (deployHosts.isEmpty()) {
+            error('No production hosts configured. Fill at least one PROD_HOST_* parameter in the Jenkins job.')
+          }
+
+          withCredentials([
+            sshUserPrivateKey(credentialsId: 'ssh-prod-server', keyFileVariable: 'SSH_KEY_FILE', usernameVariable: 'SSH_USER')
+          ]) {
+            for (host in deployHosts) {
+              echo "Deploying to ${host}"
+              sh """
+                ssh -o StrictHostKeyChecking=no -i \$SSH_KEY_FILE \$SSH_USER@${host} <<'REMOTE'
+set -e
+
+if [ ! -d /opt/futurekawa/.git ]; then
+  sudo mkdir -p /opt/futurekawa || true
+  sudo chown "$USER":"$USER" /opt/futurekawa || true
+  git clone https://github.com/Theophane999/MSPR5_SERVEURS.git /opt/futurekawa
+fi
+
+cd /opt/futurekawa
+git fetch origin main
+git checkout main
+git pull --ff-only origin main
+test -f docker-compose.prod.yml
+docker compose version
+DEPLOY_TAG=prod docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+REMOTE
+              """
+            }
+          }
+        }
       }
     }
 
