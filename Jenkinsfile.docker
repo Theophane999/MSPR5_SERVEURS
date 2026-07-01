@@ -78,7 +78,7 @@ pipeline {
           agent any
           steps {
             unstash 'workspace-src'
-            sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/services/backend-child" gradle:8.10.2-jdk21 gradle --no-daemon test'
+                sh 'docker run --rm -v "$WORKSPACE:$WORKSPACE" -w "$WORKSPACE/services/backend-child" gradle:8.10.2-jdk21 gradle --no-daemon test'
           }
         }
 
@@ -86,7 +86,7 @@ pipeline {
           agent any
           steps {
             unstash 'workspace-src'
-            sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/services/backend-mother" gradle:8.10.2-jdk21 gradle --no-daemon test'
+                sh 'docker run --rm -v "$WORKSPACE:$WORKSPACE" -w "$WORKSPACE/services/backend-mother" gradle:8.10.2-jdk21 gradle --no-daemon test'
           }
         }
       }
@@ -97,7 +97,8 @@ pipeline {
       steps {
         unstash 'workspace-src'
         sh '''
-          docker run --rm --volumes-from jenkins -w "$WORKSPACE/services/frontend" mcr.microsoft.com/playwright:v1.54.0-jammy /bin/bash -lc 'npm ci && CHROME_BIN=$(which google-chrome-stable || which google-chrome || which chromium || which chromium-browser || true); if [ -z "$CHROME_BIN" ]; then CHROME_BIN=$(find /ms-playwright -type f 2>/dev/null | grep -E "/(chrome|chromium)$" | head -n 1); fi; if [ -z "$CHROME_BIN" ]; then echo Chrome/Chromium binary not found; exit 1; fi; export CHROME_BIN; npx ng test --watch=false --browsers=ChromeHeadlessNoSandbox --progress=false'
+          # Mount the Jenkins workspace explicitly; --volumes-from jenkins does not reliably expose the job workspace.
+          docker run --rm -v "$WORKSPACE:$WORKSPACE" -w "$WORKSPACE/services/frontend" mcr.microsoft.com/playwright:v1.54.0-jammy /bin/bash -lc 'npm ci && CHROME_BIN=$(which google-chrome-stable || which google-chrome || which chromium || which chromium-browser || true); if [ -z "$CHROME_BIN" ]; then CHROME_BIN=$(find /ms-playwright -type f 2>/dev/null | grep -E "/(chrome|chromium)$" | head -n 1); fi; if [ -z "$CHROME_BIN" ]; then echo Chrome/Chromium binary not found; exit 1; fi; export CHROME_BIN; npx ng test --watch=false --browsers=ChromeHeadlessNoSandbox --progress=false'
         '''
       }
     }
@@ -106,7 +107,7 @@ pipeline {
       agent any
       steps {
         unstash 'workspace-src'
-        sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/services/frontend" node:20 /bin/bash -lc "npm ci && npm run build"'
+        sh 'docker run --rm -v "$WORKSPACE:$WORKSPACE" -w "$WORKSPACE/services/frontend" node:20 /bin/bash -lc "npm ci && npm run build"'
       }
     }
 
@@ -114,9 +115,9 @@ pipeline {
       agent any
       steps {
         unstash 'workspace-src'
-        sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/terraform" hashicorp/terraform:1.8.5 init -backend=false'
-        sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/terraform" hashicorp/terraform:1.8.5 fmt -check'
-        sh 'docker run --rm --volumes-from jenkins -w "$WORKSPACE/terraform" hashicorp/terraform:1.8.5 validate'
+        sh 'docker run --rm -v "$WORKSPACE:$WORKSPACE" -w "$WORKSPACE/terraform" hashicorp/terraform:1.8.5 init -backend=false'
+        sh 'docker run --rm -v "$WORKSPACE:$WORKSPACE" -w "$WORKSPACE/terraform" hashicorp/terraform:1.8.5 fmt -check'
+        sh 'docker run --rm -v "$WORKSPACE:$WORKSPACE" -w "$WORKSPACE/terraform" hashicorp/terraform:1.8.5 validate'
       }
     }
 
@@ -135,7 +136,7 @@ pipeline {
           def isBranchProd    = env.BRANCH_NAME == 'main'
           env.IMAGE_TAG = env.GIT_COMMIT ? env.GIT_COMMIT.take(8) : 'ci'
           def tag = isBranchProd ? 'prod' : (isBranchPreprod ? 'preprod' : 'ci')
-
+          docker run --rm --network host -v \"$WORKSPACE:$WORKSPACE\" -w \"$WORKSPACE\" mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \
           sh """
             docker build -t futurekawa/backend-child:${tag} ./services/backend-child
             docker build -t futurekawa/backend-mother:${tag} ./services/backend-mother
@@ -165,7 +166,7 @@ pipeline {
           export MOTHER_HOST_PORT=13200
           export FRONTEND_HOST_PORT=18080
           docker compose -f docker-compose.preprod.yml up -d --build
-          docker run --rm --network host --volumes-from jenkins -w "\$WORKSPACE" mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \\
+          docker run --rm --network host -v \"$WORKSPACE:$WORKSPACE\" -w \"$WORKSPACE\" mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \
             pwsh -NoLogo -NoProfile -File ./scripts/smoke-preprod.ps1 \\
             -FrontendUrl "http://localhost:18080" \\
             -MotherApiUrl "http://localhost:13200/api/children" \\
@@ -259,7 +260,7 @@ REMOTE
       steps {
         unstash 'workspace-src'
         sh """
-          docker run --rm --network host --volumes-from jenkins -w "\$WORKSPACE" mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \\
+          docker run --rm --network host -v \"$WORKSPACE:$WORKSPACE\" -w \"$WORKSPACE\" mcr.microsoft.com/powershell:7.4-ubuntu-22.04 \
             pwsh -NoLogo -NoProfile -File ./scripts/smoke-preprod.ps1 \\
             -FrontendUrl \"${params.PROD_FRONTEND_URL}\" \\
             -MotherApiUrl \"${params.PROD_MOTHER_API_URL}\" \\

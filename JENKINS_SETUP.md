@@ -22,6 +22,8 @@ Pour la variante Docker ([Jenkinsfile.docker](Jenkinsfile.docker)) ajoute aussi:
 - Agent Windows avec outils installes localement: [Jenkinsfile](Jenkinsfile)
 - Agent Linux/Unix avec outils encapsules par stage: [Jenkinsfile.docker](Jenkinsfile.docker)
 
+Important: pour le CD, utilise [Jenkinsfile.docker](Jenkinsfile.docker). Le pipeline utilise maintenant un bind mount explicite du workspace Jenkins (`-v "$WORKSPACE:$WORKSPACE"`) avant chaque `docker run`, ce qui evite les echecs de `cd`/`-w` causes par `--volumes-from jenkins`.
+
 ## 3) Credentials GitHub
 
 Dans Jenkins:
@@ -39,6 +41,8 @@ Si tu utilises [Jenkinsfile.docker](Jenkinsfile.docker), cree ces credentials av
 
 Mode de deploiement actuel: pas de push vers un registry Docker.
 Le deploy `main` fait un `git pull` puis un `docker compose up -d --build` via SSH sur plusieurs VMs en une seule execution.
+
+Le probleme corrige cote CD etait le faux montage du workspace dans les conteneurs Jenkins. `--volumes-from jenkins` ne garantissait pas que le dossier de travail du job soit visible, donc les commandes lancees avec `-w` pouvaient echouer. Le pipeline monte maintenant explicitement le workspace du job.
 
 Premier deploiement (VM vide): le pipeline bootstrap automatiquement la VM cible.
 S'il ne trouve pas `/opt/futurekawa/.git`, il cree `/opt/futurekawa`, clone le repo, puis lance le deploiement.
