@@ -256,11 +256,27 @@ if [ "\$COMPOSE_PROFILES" = "mother" ]; then
     docker rm -f "\$cid" || true
   done
 
+  # Remove known compose frontend container names first (running or stopped)
+  for cid in \$(docker ps -aq --filter name='futurekawa_frontend'); do
+    echo "Removing existing frontend container by name: \$cid"
+    docker rm -f "\$cid" || true
+  done
+
   for frontend_port in 80 443; do
-    for cid in \$(docker ps -q --filter publish=\$frontend_port); do
+    cids="\$(docker ps -q --filter publish=\$frontend_port || true)"
+    if [ -z "\$cids" ]; then
+      cids="\$(docker ps --format '{{.ID}} {{.Ports}}' | awk -v p=":\$frontend_port->" '\$0 ~ p {print \$1}' | sort -u)"
+    fi
+    for cid in \$cids; do
       echo "Stopping container using port \$frontend_port: \$cid"
       docker rm -f "\$cid" || true
     done
+
+    if docker ps --format '{{.Ports}}' | grep -Eq "(^|, )0\.0\.0\.0:\$frontend_port->|(^|, )\[::\]:\$frontend_port->"; then
+      echo "ERROR: Port \$frontend_port is still allocated after cleanup"
+      docker ps --format 'table {{.ID}}\t{{.Names}}\t{{.Ports}}'
+      exit 1
+    fi
   done
 fi
 
