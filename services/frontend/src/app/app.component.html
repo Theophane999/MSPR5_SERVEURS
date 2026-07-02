@@ -512,7 +512,7 @@
           </div>
         </div>
 
-        <p class="panel-note">Sélectionne une expédition à gauche pour la modifier, ou crée-en une nouvelle avec la composition lotId:quantité (ou lotReference:quantité).</p>
+        <p class="panel-note">Crée une nouvelle expédition ici. La modification/suppression se fait directement dans la table ci-dessous via Éditer/Supprimer.</p>
 
         <div class="lot-form-grid crud-grid expedition-grid-form">
           <label>Date départ
@@ -585,8 +585,6 @@
 
         <div class="lot-actions expedition-actions">
           <button type="button" (click)="createExpedition()">Créer expédition</button>
-          <button type="button" (click)="updateSelectedExpedition()">Modifier expédition sélectionnée</button>
-          <button type="button" (click)="deleteSelectedExpedition()">Supprimer expédition sélectionnée</button>
           <button type="button" (click)="resetExpeditionForm()">Vider formulaire</button>
         </div>
 
@@ -719,7 +717,14 @@
                 <div *ngFor="let lot of expeditionInlineLotsPreview; let i = index">
                   <span>{{ lot.lotReference }}</span>
                   <span>{{ lot.lotId }}</span>
-                  <span>{{ lot.quantiteExpediee }}</span>
+                  <span>
+                    <input
+                      type="number"
+                      min="1"
+                      [ngModel]="lot.quantiteExpediee"
+                      (ngModelChange)="updateLotQuantityInInlineExpeditionForm(i, $any($event))"
+                    />
+                  </span>
                   <span><button type="button" class="ghost-button danger" (click)="removeLotFromInlineExpeditionForm(i)">Retirer</button></span>
                 </div>
               </div>
