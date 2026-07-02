@@ -66,6 +66,7 @@ export interface AlertView {
   level: 'warning' | 'critical';
   message: string;
   timestamp: string;
+  zone?: string;
 }
 
 export interface ChildStatus {
