@@ -278,6 +278,9 @@ if [ "\$COMPOSE_PROFILES" = "mother" ]; then
       exit 1
     fi
   done
+
+  echo "Forcing no-cache rebuild for frontend on mother host"
+  \$COMPOSE_CMD -f docker-compose.prod.yml build --no-cache frontend
 fi
 
 \$COMPOSE_CMD -f docker-compose.prod.yml up -d --build --remove-orphans
