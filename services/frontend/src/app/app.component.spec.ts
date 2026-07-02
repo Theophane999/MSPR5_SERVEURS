@@ -22,8 +22,11 @@ describe('AppComponent', () => {
         },
         expeditions: [
           { id: 'E1', statut: 'livree', destinationPays: 'France', destinationVille: 'Paris', destinationClient: 'Client A', departAt: '2026-06-01T08:00:00Z', arriveeEstimeeAt: '2026-06-02T08:00:00Z', poidsTotalKg: 100, trackingTransporteur: 'TRK-1', quaiDepart: 'Q1', transporteur: 'Translog', livreurNom: 'Ana', livreurTelephone: '010203', lots: [] },
-          { id: 'E2', statut: 'en_transit', destinationPays: 'France', destinationVille: 'Lyon', destinationClient: 'Client B', departAt: '2026-06-02T08:00:00Z', arriveeEstimeeAt: '2026-06-03T08:00:00Z', poidsTotalKg: 120, trackingTransporteur: 'TRK-2', quaiDepart: 'Q2', transporteur: 'Translog', livreurNom: 'Ben', livreurTelephone: '010204', lots: [] },
+          { id: 'E2', statut: 'en_transit', destinationPays: 'France', destinationVille: 'Lyon', destinationClient: 'Client B', departAt: '2026-06-02T08:00:00Z', arriveeEstimeeAt: '2026-06-03T08:00:00Z', poidsTotalKg: 120, trackingTransporteur: 'TRK-2', quaiDepart: 'Q2', transporteur: 'Translog', livreurNom: 'Ben', livreurTelephone: '010204', lots: [{ lotId: 11, lotReference: 'BR-24-0011', quantiteExpediee: 42, poidsExpedieKg: 21 }] },
           { id: 'E3', statut: 'en_transit', destinationPays: 'Spain', destinationVille: 'Madrid', destinationClient: 'Client C', departAt: '2026-06-03T08:00:00Z', arriveeEstimeeAt: '2026-06-04T08:00:00Z', poidsTotalKg: 150, trackingTransporteur: 'TRK-3', quaiDepart: 'Q3', transporteur: 'ShipIt', livreurNom: 'Caro', livreurTelephone: '010205', lots: [] },
+        ],
+        lots: [
+          { id: '11', lotReference: 'BR-24-0011', storageDate: '2026-06-01', status: 'ok', temperature: 25, humidite: 60 },
         ],
       },
       {
@@ -178,7 +181,7 @@ describe('AppComponent', () => {
       expeditionPageIndex: number;
       paginatedSelectedCountryExpeditions: any[];
       expeditionInlineEditId?: string;
-      expeditionInlineForm: { destinationClient: string };
+      expeditionInlineForm: { destinationClient: string; lotsText: string };
       startInlineExpeditionEdit: (expedition: any) => void;
     };
 
@@ -191,5 +194,6 @@ describe('AppComponent', () => {
 
     expect(component.expeditionInlineEditId).toBe('E2');
     expect(component.expeditionInlineForm.destinationClient).toBe('Client B');
+    expect(component.expeditionInlineForm.lotsText).toContain('11:42');
   });
 });
