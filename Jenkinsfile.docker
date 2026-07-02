@@ -250,10 +250,10 @@ export COMPOSE_PROFILES=${composeProfile}
 export DEPLOY_TAG=prod
 ${isMotherHost ? "export APP_CHILDREN='${appChildrenServices}'" : ''}
 
-if [ "$COMPOSE_PROFILES" = "mother" ]; then
-  for cid in $(docker ps -q --filter publish=3200); do
-    echo "Stopping container using port 3200: $cid"
-    docker rm -f "$cid" || true
+if [ "\$COMPOSE_PROFILES" = "mother" ]; then
+  for cid in \$(docker ps -q --filter publish=3200); do
+    echo "Stopping container using port 3200: \$cid"
+    docker rm -f "\$cid" || true
   done
 fi
 
