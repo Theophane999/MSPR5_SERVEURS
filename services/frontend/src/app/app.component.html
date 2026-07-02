@@ -48,7 +48,7 @@
         </article>
         <article>
           <span>Dernière synchro</span>
-          <strong>{{ aggregatedAt ? (aggregatedAt | date:'shortTime') : 'pending' }}</strong>
+          <strong>{{ aggregatedAt ? (aggregatedAt | date:'dd/MM/yyyy HH:mm:ss') : 'pending' }}</strong>
         </article>
       </div>
     </div>
@@ -207,7 +207,7 @@
       <div>
         <p class="panel-label">Détail pays</p>
         <h2>{{ selectedCountryDisplayName }}</h2>
-        <p class="panel-note">Dernière mise à jour : {{ aggregatedAt ? (aggregatedAt | date:'medium') : 'N/A' }}</p>
+        <p class="panel-note">Dernière mise à jour : {{ aggregatedAt ? (aggregatedAt | date:'dd/MM/yyyy HH:mm:ss') : 'N/A' }}</p>
       </div>
       <div class="detail-kpis">
         <span [ngClass]="(selectedCountry.stockState?.criticalLots ?? 0) > 0 ? 'kpi-chip critical' : 'kpi-chip ok'">
@@ -244,7 +244,7 @@
         <div class="sensor-big-val hum">
           <span>Humidité</span>
           <strong>{{ selectedCountry.sensorData!.humidite | number:'1.1-1' }} %</strong>
-          <small>{{ selectedCountry.sensorData!.date }}</small>
+          <small>{{ selectedCountry.data?.timestamp ? (selectedCountry.data!.timestamp | date:'dd/MM/yyyy HH:mm:ss') : selectedCountry.sensorData!.date }}</small>
         </div>
       </div>
       <ng-template #noSensor>
@@ -748,7 +748,7 @@
         <article *ngFor="let alert of selectedCountryAlerts" [ngClass]="'alert-' + alert.level">
           <div class="alert-header">
             <strong>{{ alert.level === 'critical' ? '🚨 Critique' : '⚠ Vigilance' }}</strong>
-            <small>{{ alert.timestamp | date:'medium' }}</small>
+            <small>{{ alert.timestamp | date:'dd/MM/yyyy HH:mm:ss' }}</small>
           </div>
           <p>{{ alert.message }}</p>
         </article>
