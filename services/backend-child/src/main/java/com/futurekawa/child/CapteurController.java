@@ -36,6 +36,7 @@ public class CapteurController {
         CapteurRecord c = latest.get();
         return Map.of(
             "available", true,
+            "id", c.id(),
             "idEntrepot", c.idEntrepot(),
             "temperature", c.temperature() != null ? c.temperature() : 0.0,
             "humidite", c.humidite() != null ? c.humidite() : 0.0,

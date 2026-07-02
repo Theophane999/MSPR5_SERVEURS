@@ -239,7 +239,7 @@
         <div class="sensor-big-val temp">
           <span>Température</span>
           <strong>{{ selectedCountry.sensorData!.temperature | number:'1.1-1' }} °C</strong>
-          <small>Entrepôt {{ selectedCountry.sensorData!.idEntrepot }}</small>
+          <small>ID mesure {{ selectedCountry.sensorData!.id || 'N/A' }} • Entrepôt {{ selectedCountry.sensorData!.idEntrepot }}</small>
         </div>
         <div class="sensor-big-val hum">
           <span>Humidité</span>

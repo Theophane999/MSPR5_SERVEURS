@@ -1,4 +1,5 @@
 export interface CapteurData {
+  id?: number;
   idEntrepot: number;
   temperature: number;
   humidite: number;
