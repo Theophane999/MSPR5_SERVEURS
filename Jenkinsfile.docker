@@ -255,6 +255,13 @@ if [ "\$COMPOSE_PROFILES" = "mother" ]; then
     echo "Stopping container using port 3200: \$cid"
     docker rm -f "\$cid" || true
   done
+
+  for frontend_port in 80 443; do
+    for cid in \$(docker ps -q --filter publish=\$frontend_port); do
+      echo "Stopping container using port \$frontend_port: \$cid"
+      docker rm -f "\$cid" || true
+    done
+  done
 fi
 
 \$COMPOSE_CMD -f docker-compose.prod.yml up -d --build --remove-orphans
