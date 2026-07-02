@@ -340,6 +340,10 @@ export class AppComponent implements OnInit, OnDestroy {
     this.removeLotFromForm(this.expeditionInlineForm, index);
   }
 
+  protected updateLotQuantityInInlineExpeditionForm(index: number, quantite: number | null): void {
+    this.updateLotQuantityInForm(this.expeditionInlineForm, index, quantite);
+  }
+
   protected saveInlineExpeditionEdit(expedition: ExpeditionView, event?: MouseEvent): void {
     event?.stopPropagation();
     const selected = this.selectedCountry;
@@ -844,58 +848,6 @@ export class AppComponent implements OnInit, OnDestroy {
     });
   }
 
-  protected updateSelectedExpedition(): void {
-    const selected = this.selectedCountry;
-    if (!selected?.url || !this.selectedExpeditionId) {
-      this.lotActionError = 'Aucune expedition selectionnee';
-      return;
-    }
-
-    this.lotActionMessage = undefined;
-    this.lotActionError = undefined;
-
-    const payload = this.buildPayloadForExpedition();
-    const validationError = this.validateExpeditionPayload(payload);
-    if (validationError) {
-      this.lotActionError = validationError;
-      return;
-    }
-
-    this.dashboardService.updateExpedition(selected.url, this.selectedExpeditionId, payload).subscribe({
-      next: () => {
-        this.lotActionMessage = 'Expedition mise a jour';
-        this.captureScrollPosition('.expedition-crud');
-        this.refresh();
-      },
-      error: (error: { message?: string }) => {
-        this.lotActionError = error.message ?? 'Echec mise a jour expedition';
-      },
-    });
-  }
-
-  protected deleteSelectedExpedition(): void {
-    const selected = this.selectedCountry;
-    if (!selected?.url || !this.selectedExpeditionId) {
-      this.lotActionError = 'Aucune expedition selectionnee';
-      return;
-    }
-
-    this.lotActionMessage = undefined;
-    this.lotActionError = undefined;
-
-    this.dashboardService.deleteExpedition(selected.url, this.selectedExpeditionId).subscribe({
-      next: () => {
-        this.lotActionMessage = 'Expedition supprimee';
-        this.selectedExpeditionId = undefined;
-        this.captureScrollPosition('.expedition-crud');
-        this.refresh();
-      },
-      error: (error: { message?: string }) => {
-        this.lotActionError = error.message ?? 'Echec suppression expedition';
-      },
-    });
-  }
-
   private fillFormFromSelectedLot(): void {
     const lot = this.selectedLot;
 
@@ -1063,6 +1015,26 @@ export class AppComponent implements OnInit, OnDestroy {
 
     parsed.splice(index, 1);
     form.lotsText = parsed.map((lot) => `${lot.lotId}:${lot.quantiteExpediee}`).join(', ');
+  }
+
+  private updateLotQuantityInForm(form: ExpeditionFormState, index: number, quantite: number | null): void {
+    const parsed = this.parseExpeditionLots(form.lotsText);
+    if (index < 0 || index >= parsed.length) {
+      return;
+    }
+
+    const qty = Number(quantite ?? 0);
+    if (!Number.isFinite(qty) || qty <= 0) {
+      this.lotActionError = 'La quantite du lot doit etre superieure a 0';
+      return;
+    }
+
+    parsed[index] = {
+      ...parsed[index],
+      quantiteExpediee: qty,
+    };
+    form.lotsText = parsed.map((lot) => `${lot.lotId}:${lot.quantiteExpediee}`).join(', ');
+    this.lotActionError = undefined;
   }
 
   private validateExpeditionPayload(payload: ExpeditionUpsertPayload): string | undefined {
