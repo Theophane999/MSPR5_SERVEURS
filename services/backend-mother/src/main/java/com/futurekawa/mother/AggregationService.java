@@ -78,6 +78,18 @@ public class AggregationService {
         return new AggregatedResponse("mother", Instant.now().toString(), children);
     }
 
+    public Optional<String> resolveChildBaseUrl(String childName) {
+        if (childName == null || childName.isBlank()) {
+            return Optional.empty();
+        }
+
+        String normalizedName = childName.trim();
+        return childTargets.stream()
+            .filter(target -> target.name().equalsIgnoreCase(normalizedName))
+            .map(ChildTarget::url)
+            .findFirst();
+    }
+
     private ChildAggregate fetchChild(ChildTarget childTarget) {
         try {
             HttpRequest request = HttpRequest.newBuilder()

@@ -3,14 +3,6 @@ import { HttpClient } from '@angular/common/http';
 import { DashboardResponse } from '../models/dashboard.model';
 
 const FALLBACK_URL = '/api';
-const CHILD_PUBLIC_PORTS: Record<string, number> = {
-  'backend-brazil': 3101,
-  'backend-child-brazil': 3101,
-  'backend-ecuador': 3102,
-  'backend-child-ecuador': 3102,
-  'backend-colombia': 3103,
-  'backend-child-colombia': 3103,
-};
 
 export interface LotUpsertPayload {
   lotReference?: string;
@@ -51,23 +43,6 @@ export class DashboardService {
   private readonly http = inject(HttpClient);
   private readonly baseUrl = ((window as Window & { __env?: { backendMotherUrl?: string } }).__env?.backendMotherUrl ?? FALLBACK_URL).replace(/\/$/, '');
 
-  private resolveChildBaseUrl(childBaseUrl: string) {
-    const sanitizedUrl = childBaseUrl.replace(/\/$/, '');
-
-    try {
-      const parsedUrl = new URL(sanitizedUrl);
-      const mappedPort = CHILD_PUBLIC_PORTS[parsedUrl.hostname];
-
-      if (mappedPort) {
-        return `${parsedUrl.protocol}//localhost:${mappedPort}`;
-      }
-
-      return parsedUrl.origin;
-    } catch {
-      return sanitizedUrl;
-    }
-  }
-
   loadDashboard() {
     return this.http.get<DashboardResponse>(this.dashboardUrl());
   }
@@ -76,28 +51,32 @@ export class DashboardService {
     return this.baseUrl.endsWith('/api') ? `${this.baseUrl}/children` : `${this.baseUrl}/api/children`;
   }
 
-  createLot(childBaseUrl: string, payload: LotUpsertPayload) {
-    return this.http.post(`${this.resolveChildBaseUrl(childBaseUrl)}/api/lots`, payload);
+  createLot(childName: string, payload: LotUpsertPayload) {
+    return this.http.post(`${this.motherChildrenUrl()}/${encodeURIComponent(childName)}/lots`, payload);
   }
 
-  updateLot(childBaseUrl: string, lotId: string, payload: LotUpsertPayload) {
-    return this.http.put(`${this.resolveChildBaseUrl(childBaseUrl)}/api/lots/${encodeURIComponent(lotId)}`, payload);
+  updateLot(childName: string, lotId: string, payload: LotUpsertPayload) {
+    return this.http.put(`${this.motherChildrenUrl()}/${encodeURIComponent(childName)}/lots/${encodeURIComponent(lotId)}`, payload);
   }
 
-  deleteLot(childBaseUrl: string, lotId: string) {
-    return this.http.delete(`${this.resolveChildBaseUrl(childBaseUrl)}/api/lots/${encodeURIComponent(lotId)}`);
+  deleteLot(childName: string, lotId: string) {
+    return this.http.delete(`${this.motherChildrenUrl()}/${encodeURIComponent(childName)}/lots/${encodeURIComponent(lotId)}`);
   }
 
-  createExpedition(childBaseUrl: string, payload: ExpeditionUpsertPayload) {
-    return this.http.post(`${this.resolveChildBaseUrl(childBaseUrl)}/api/expeditions`, payload);
+  createExpedition(childName: string, payload: ExpeditionUpsertPayload) {
+    return this.http.post(`${this.motherChildrenUrl()}/${encodeURIComponent(childName)}/expeditions`, payload);
   }
 
-  updateExpedition(childBaseUrl: string, expeditionId: string, payload: ExpeditionUpsertPayload) {
-    return this.http.put(`${this.resolveChildBaseUrl(childBaseUrl)}/api/expeditions/${encodeURIComponent(expeditionId)}`, payload);
+  updateExpedition(childName: string, expeditionId: string, payload: ExpeditionUpsertPayload) {
+    return this.http.put(`${this.motherChildrenUrl()}/${encodeURIComponent(childName)}/expeditions/${encodeURIComponent(expeditionId)}`, payload);
   }
 
-  deleteExpedition(childBaseUrl: string, expeditionId: string) {
-    return this.http.delete(`${this.resolveChildBaseUrl(childBaseUrl)}/api/expeditions/${encodeURIComponent(expeditionId)}`);
+  deleteExpedition(childName: string, expeditionId: string) {
+    return this.http.delete(`${this.motherChildrenUrl()}/${encodeURIComponent(childName)}/expeditions/${encodeURIComponent(expeditionId)}`);
+  }
+
+  private motherChildrenUrl() {
+    return this.baseUrl.endsWith('/api') ? `${this.baseUrl}/children` : `${this.baseUrl}/api/children`;
   }
 
   motherUrl() {

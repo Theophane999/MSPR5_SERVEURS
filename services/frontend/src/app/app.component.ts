@@ -347,7 +347,7 @@ export class AppComponent implements OnInit, OnDestroy {
   protected saveInlineExpeditionEdit(expedition: ExpeditionView, event?: MouseEvent): void {
     event?.stopPropagation();
     const selected = this.selectedCountry;
-    if (!selected?.url) {
+    if (!selected?.name) {
       this.lotActionError = 'Aucun backend enfant selectionne';
       return;
     }
@@ -362,7 +362,7 @@ export class AppComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.dashboardService.updateExpedition(selected.url, expedition.id, payload).subscribe({
+    this.dashboardService.updateExpedition(selected.name, expedition.id, payload).subscribe({
       next: () => {
         this.lotActionMessage = 'Expedition mise a jour';
         this.cancelInlineExpeditionEdit();
@@ -378,7 +378,7 @@ export class AppComponent implements OnInit, OnDestroy {
   protected deleteInlineExpedition(expedition: ExpeditionView, event?: MouseEvent): void {
     event?.stopPropagation();
     const selected = this.selectedCountry;
-    if (!selected?.url) {
+    if (!selected?.name) {
       this.lotActionError = 'Aucun backend enfant selectionne';
       return;
     }
@@ -386,7 +386,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.lotActionMessage = undefined;
     this.lotActionError = undefined;
 
-    this.dashboardService.deleteExpedition(selected.url, expedition.id).subscribe({
+    this.dashboardService.deleteExpedition(selected.name, expedition.id).subscribe({
       next: () => {
         this.lotActionMessage = 'Expedition supprimee';
         if (this.expeditionInlineEditId === expedition.id) {
@@ -745,7 +745,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   protected createLot(): void {
     const selected = this.selectedCountry;
-    if (!selected?.url) {
+    if (!selected?.name) {
       this.lotActionError = 'Aucun backend enfant selectionne';
       return;
     }
@@ -753,7 +753,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.lotActionMessage = undefined;
     this.lotActionError = undefined;
 
-    this.dashboardService.createLot(selected.url, this.buildPayloadForCreate()).subscribe({
+    this.dashboardService.createLot(selected.name, this.buildPayloadForCreate()).subscribe({
       next: () => {
         this.lotActionMessage = 'Lot ajoute avec succes';
         this.captureScrollPosition('.lot-crud');
@@ -767,7 +767,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   protected updateSelectedLot(): void {
     const selected = this.selectedCountry;
-    if (!selected?.url || !this.selectedLotId) {
+    if (!selected?.name || !this.selectedLotId) {
       this.lotActionError = 'Aucun lot selectionne';
       return;
     }
@@ -776,7 +776,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.lotActionError = undefined;
     const payload = this.buildPayloadForUpdate();
 
-    this.dashboardService.updateLot(selected.url, this.selectedLotId, payload).subscribe({
+    this.dashboardService.updateLot(selected.name, this.selectedLotId, payload).subscribe({
       next: () => {
         this.lotActionMessage = 'Lot mis a jour';
         this.applyLotUpdateLocally(this.selectedLotId!, payload);
@@ -789,7 +789,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   protected deleteSelectedLot(): void {
     const selected = this.selectedCountry;
-    if (!selected?.url || !this.selectedLotId) {
+    if (!selected?.name || !this.selectedLotId) {
       this.lotActionError = 'Aucun lot selectionne';
       return;
     }
@@ -797,7 +797,7 @@ export class AppComponent implements OnInit, OnDestroy {
     this.lotActionMessage = undefined;
     this.lotActionError = undefined;
 
-    this.dashboardService.deleteLot(selected.url, this.selectedLotId).subscribe({
+    this.dashboardService.deleteLot(selected.name, this.selectedLotId).subscribe({
       next: () => {
         this.lotActionMessage = 'Lot supprime';
         this.selectedLotId = undefined;
@@ -821,7 +821,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   protected createExpedition(): void {
     const selected = this.selectedCountry;
-    if (!selected?.url) {
+    if (!selected?.name) {
       this.lotActionError = 'Aucun backend enfant selectionne';
       return;
     }
@@ -836,7 +836,7 @@ export class AppComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.dashboardService.createExpedition(selected.url, payload).subscribe({
+    this.dashboardService.createExpedition(selected.name, payload).subscribe({
       next: () => {
         this.lotActionMessage = 'Expedition ajoutee avec succes';
         this.captureScrollPosition('.expedition-crud');
