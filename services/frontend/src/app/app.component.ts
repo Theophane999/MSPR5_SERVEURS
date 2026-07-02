@@ -1029,6 +1029,10 @@ export class AppComponent implements OnInit, OnDestroy {
       return;
     }
 
+    if (parsed[index].quantiteExpediee === qty) {
+      return;
+    }
+
     parsed[index] = {
       ...parsed[index],
       quantiteExpediee: qty,
