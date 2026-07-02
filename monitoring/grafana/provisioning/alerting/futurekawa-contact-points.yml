@@ -8,7 +8,7 @@ contactPoints:
         type: discord
         disableResolveMessage: false
         settings:
-          url: ${https://discord.com/api/webhooks/1522356704182796332/2cez-QZKPL_E6dtlgYUWQdov5Xfzs9GEHFYv3tkM7Z8Sz5AJnoMLkeEFx7LbniOfkQxl}
+          url: $__env{DISCORD_WEBHOOK_URL}
           title: "[{{ .Status | toUpper }}] FutureKawa - {{ .CommonLabels.alertname }}"
           message: "{{ template \"default.message\" . }}"
 
