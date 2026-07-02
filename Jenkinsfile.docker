@@ -272,7 +272,7 @@ if [ "\$COMPOSE_PROFILES" = "mother" ]; then
       docker rm -f "\$cid" || true
     done
 
-    if docker ps --format '{{.Ports}}' | grep -Eq "(^|, )0\.0\.0\.0:\$frontend_port->|(^|, )\[::\]:\$frontend_port->"; then
+    if docker ps --format '{{.Ports}}' | grep -Eq "(^|, )0\\.0\\.0\\.0:\$frontend_port->|(^|, )\\[::\\]:\$frontend_port->"; then
       echo "ERROR: Port \$frontend_port is still allocated after cleanup"
       docker ps --format 'table {{.ID}}\t{{.Names}}\t{{.Ports}}'
       exit 1
