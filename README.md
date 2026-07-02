@@ -182,6 +182,12 @@ Des règles d’alerte Grafana sont aussi provisionnées pour :
 - CPU backend > 75%
 - heap backend > 85%
 - backend indisponible (`up = 0`)
+- capteurs **température/humidité** par pays avec seuils métier :
+    - Brésil: 29°C ±3 et 55% ±2
+    - Équateur: 31°C ±3 et 60% ±2
+    - Colombie: 26°C ±3 et 80% ±2
+
+Pour recevoir ces alertes sur Discord, définir `DISCORD_WEBHOOK_URL` dans l’environnement du service Grafana (compose préprod/prod).
 
 Detruire l'infra :
 

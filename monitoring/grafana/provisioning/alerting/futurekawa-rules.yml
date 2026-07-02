@@ -173,3 +173,356 @@ groups:
               intervalMs: 1000
               maxDataPoints: 43200
               instant: true
+
+  - orgId: 1
+    name: futurekawa-capteurs-pays
+    folder: FutureKawa
+    interval: 1m
+    rules:
+      - uid: futurekawa-brazil-temp-out-of-range
+        title: Bresil temperature hors plage
+        condition: C
+        for: 2m
+        noDataState: Alerting
+        execErrState: Alerting
+        annotations:
+          summary: "Bresil: temperature hors plage cible"
+          description: "Cible 29°C avec tolerance ±3°C (plage 26-32°C)."
+        labels:
+          severity: critical
+          service: futurekawa
+          country: brazil
+          metric: temperature
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: (avg_over_time(futurekawa_capteur_temperature_celsius{job="backend-child-brazil"}[10m]) < 26) or (avg_over_time(futurekawa_capteur_temperature_celsius{job="backend-child-brazil"}[10m]) > 32)
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+              instant: true
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: classic_conditions
+              refId: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params:
+                      - 0.5
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+                    params: []
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: $B
+              refId: C
+              intervalMs: 1000
+              maxDataPoints: 43200
+              instant: true
+
+      - uid: futurekawa-brazil-humidity-out-of-range
+        title: Bresil humidite hors plage
+        condition: C
+        for: 2m
+        noDataState: Alerting
+        execErrState: Alerting
+        annotations:
+          summary: "Bresil: humidite hors plage cible"
+          description: "Cible 55% avec tolerance ±2% (plage 53-57%)."
+        labels:
+          severity: critical
+          service: futurekawa
+          country: brazil
+          metric: humidite
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: (avg_over_time(futurekawa_capteur_humidite_percent{job="backend-child-brazil"}[10m]) < 53) or (avg_over_time(futurekawa_capteur_humidite_percent{job="backend-child-brazil"}[10m]) > 57)
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+              instant: true
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: classic_conditions
+              refId: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params:
+                      - 0.5
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+                    params: []
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: $B
+              refId: C
+              intervalMs: 1000
+              maxDataPoints: 43200
+              instant: true
+
+      - uid: futurekawa-ecuador-temp-out-of-range
+        title: Equateur temperature hors plage
+        condition: C
+        for: 2m
+        noDataState: Alerting
+        execErrState: Alerting
+        annotations:
+          summary: "Equateur: temperature hors plage cible"
+          description: "Cible 31°C avec tolerance ±3°C (plage 28-34°C)."
+        labels:
+          severity: critical
+          service: futurekawa
+          country: ecuador
+          metric: temperature
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: (avg_over_time(futurekawa_capteur_temperature_celsius{job="backend-child-ecuador"}[10m]) < 28) or (avg_over_time(futurekawa_capteur_temperature_celsius{job="backend-child-ecuador"}[10m]) > 34)
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+              instant: true
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: classic_conditions
+              refId: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params:
+                      - 0.5
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+                    params: []
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: $B
+              refId: C
+              intervalMs: 1000
+              maxDataPoints: 43200
+              instant: true
+
+      - uid: futurekawa-ecuador-humidity-out-of-range
+        title: Equateur humidite hors plage
+        condition: C
+        for: 2m
+        noDataState: Alerting
+        execErrState: Alerting
+        annotations:
+          summary: "Equateur: humidite hors plage cible"
+          description: "Cible 60% avec tolerance ±2% (plage 58-62%)."
+        labels:
+          severity: critical
+          service: futurekawa
+          country: ecuador
+          metric: humidite
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: (avg_over_time(futurekawa_capteur_humidite_percent{job="backend-child-ecuador"}[10m]) < 58) or (avg_over_time(futurekawa_capteur_humidite_percent{job="backend-child-ecuador"}[10m]) > 62)
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+              instant: true
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: classic_conditions
+              refId: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params:
+                      - 0.5
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+                    params: []
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: $B
+              refId: C
+              intervalMs: 1000
+              maxDataPoints: 43200
+              instant: true
+
+      - uid: futurekawa-colombia-temp-out-of-range
+        title: Colombie temperature hors plage
+        condition: C
+        for: 2m
+        noDataState: Alerting
+        execErrState: Alerting
+        annotations:
+          summary: "Colombie: temperature hors plage cible"
+          description: "Cible 26°C avec tolerance ±3°C (plage 23-29°C)."
+        labels:
+          severity: critical
+          service: futurekawa
+          country: colombia
+          metric: temperature
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: (avg_over_time(futurekawa_capteur_temperature_celsius{job="backend-child-colombia"}[10m]) < 23) or (avg_over_time(futurekawa_capteur_temperature_celsius{job="backend-child-colombia"}[10m]) > 29)
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+              instant: true
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: classic_conditions
+              refId: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params:
+                      - 0.5
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+                    params: []
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: $B
+              refId: C
+              intervalMs: 1000
+              maxDataPoints: 43200
+              instant: true
+
+      - uid: futurekawa-colombia-humidity-out-of-range
+        title: Colombie humidite hors plage
+        condition: C
+        for: 2m
+        noDataState: Alerting
+        execErrState: Alerting
+        annotations:
+          summary: "Colombie: humidite hors plage cible"
+          description: "Cible 80% avec tolerance ±2% (plage 78-82%)."
+        labels:
+          severity: critical
+          service: futurekawa
+          country: colombia
+          metric: humidite
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              expr: (avg_over_time(futurekawa_capteur_humidite_percent{job="backend-child-colombia"}[10m]) < 78) or (avg_over_time(futurekawa_capteur_humidite_percent{job="backend-child-colombia"}[10m]) > 82)
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+              instant: true
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              type: classic_conditions
+              refId: B
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - type: query
+                  evaluator:
+                    type: gt
+                    params:
+                      - 0.5
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - A
+                  reducer:
+                    type: last
+                    params: []
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              type: math
+              expression: $B
+              refId: C
+              intervalMs: 1000
+              maxDataPoints: 43200
+              instant: true
