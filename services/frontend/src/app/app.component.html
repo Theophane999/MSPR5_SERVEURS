@@ -721,8 +721,8 @@
                     <input
                       type="number"
                       min="1"
-                      [ngModel]="lot.quantiteExpediee"
-                      (ngModelChange)="updateLotQuantityInInlineExpeditionForm(i, $any($event))"
+                      [value]="lot.quantiteExpediee"
+                      (change)="updateLotQuantityInInlineExpeditionForm(i, +$any($event.target).value)"
                     />
                   </span>
                   <span><button type="button" class="ghost-button danger" (click)="removeLotFromInlineExpeditionForm(i)">Retirer</button></span>
