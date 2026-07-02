@@ -18,10 +18,10 @@ pipeline {
     string(name: 'PROD_CHILD_HEALTH_BRAZIL', defaultValue: 'http://brazil.future-kawa.online:3000/health', description: 'Brazil child health URL used by post-deploy smoke tests')
     string(name: 'PROD_CHILD_HEALTH_COLOMBIA', defaultValue: 'http://colombia.future-kawa.online:3000/health', description: 'Colombia child health URL used by post-deploy smoke tests')
     string(name: 'PROD_CHILD_HEALTH_ECUADOR', defaultValue: 'http://ecuador.future-kawa.online:3000/health', description: 'Ecuador child health URL used by post-deploy smoke tests')
-    string(name: 'PROD_HOST_MOTHER', defaultValue: '', description: 'Production host/IP for mother VM')
-    string(name: 'PROD_HOST_BRAZIL', defaultValue: '', description: 'Production host/IP for Brazil VM')
-    string(name: 'PROD_HOST_COLOMBIA', defaultValue: '', description: 'Production host/IP for Colombia VM')
-    string(name: 'PROD_HOST_ECUADOR', defaultValue: '', description: 'Production host/IP for Ecuador VM')
+    string(name: 'PROD_HOST_MOTHER', defaultValue: '34.156.12.77', description: 'Production host/IP for mother VM')
+    string(name: 'PROD_HOST_BRAZIL', defaultValue: '35.205.81.113', description: 'Production host/IP for Brazil VM')
+    string(name: 'PROD_HOST_COLOMBIA', defaultValue: '34.62.99.9', description: 'Production host/IP for Colombia VM')
+    string(name: 'PROD_HOST_ECUADOR', defaultValue: '34.52.149.208', description: 'Production host/IP for Ecuador VM')
     string(name: 'PROD_HOST_JENKINS', defaultValue: '', description: 'Optional production host/IP for Jenkins VM')
   }
 
