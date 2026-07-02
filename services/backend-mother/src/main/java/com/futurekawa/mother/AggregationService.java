@@ -119,7 +119,7 @@ public class AggregationService {
                 List.of(),
                 List.of(),
                 new StockState(0, 0, 0, 0, null),
-                List.of(new AlertView("critical", "Backend pays indisponible", Instant.now().toString())),
+                List.of(new AlertView("critical", withZone(childTarget, "Backend pays indisponible"), Instant.now().toString())),
                 List.of(),
                 exception.getMessage()
             );
@@ -311,27 +311,32 @@ public class AggregationService {
     ) {
         List<AlertView> alerts = new ArrayList<>();
         if (!available) {
-            alerts.add(new AlertView("critical", "Pays " + childTarget.name() + " injoignable", Instant.now().toString()));
+            alerts.add(new AlertView("critical", withZone(childTarget, "Pays injoignable"), Instant.now().toString()));
             return alerts;
         }
 
         if (lots.isEmpty()) {
-            alerts.add(new AlertView("warning", "Aucune mesure historique disponible", Instant.now().toString()));
+            alerts.add(new AlertView("warning", withZone(childTarget, "Aucune mesure historique disponible"), Instant.now().toString()));
         }
 
         if (sensorData == null || !Boolean.TRUE.equals(sensorData.get("available"))) {
-            alerts.add(new AlertView("warning", "Capteurs indisponibles", Instant.now().toString()));
+            alerts.add(new AlertView("warning", withZone(childTarget, "Capteurs indisponibles"), Instant.now().toString()));
         }
 
         for (LotView lot : lots.stream().limit(5).toList()) {
             if ("critical".equals(lot.status())) {
-                alerts.add(new AlertView("critical", "Lot " + lotLabel(lot) + " hors seuil critique", Instant.now().toString()));
+                alerts.add(new AlertView("critical", withZone(childTarget, "Lot " + lot.id() + " hors seuil critique"), Instant.now().toString()));
             } else if ("warning".equals(lot.status())) {
-                alerts.add(new AlertView("warning", "Lot " + lotLabel(lot) + " hors seuil de vigilance", Instant.now().toString()));
+                alerts.add(new AlertView("warning", withZone(childTarget, "Lot " + lot.id() + " hors seuil de vigilance"), Instant.now().toString()));
             }
         }
 
         return alerts;
+    }
+
+    private String withZone(ChildTarget childTarget, String message) {
+        String zone = childTarget.name() != null ? childTarget.name() : "inconnue";
+        return "[Zone " + zone + "] " + message;
     }
 
     private String lotLabel(LotView lot) {
