@@ -13,11 +13,11 @@ pipeline {
   }
 
   parameters {
-    string(name: 'PROD_FRONTEND_URL', defaultValue: 'http://app.future-kawa.online', description: 'Frontend URL used by post-deploy smoke tests')
-    string(name: 'PROD_MOTHER_API_URL', defaultValue: 'http://api.future-kawa.online:3200/api/children', description: 'Mother API URL used by post-deploy smoke tests')
-    string(name: 'PROD_CHILD_HEALTH_BRAZIL', defaultValue: 'http://brazil.future-kawa.online:3000/health', description: 'Brazil child health URL used by post-deploy smoke tests')
-    string(name: 'PROD_CHILD_HEALTH_COLOMBIA', defaultValue: 'http://colombia.future-kawa.online:3000/health', description: 'Colombia child health URL used by post-deploy smoke tests')
-    string(name: 'PROD_CHILD_HEALTH_ECUADOR', defaultValue: 'http://ecuador.future-kawa.online:3000/health', description: 'Ecuador child health URL used by post-deploy smoke tests')
+    string(name: 'PROD_FRONTEND_URL', defaultValue: 'http://34.156.12.77', description: 'Frontend URL used by post-deploy smoke tests')
+    string(name: 'PROD_MOTHER_API_URL', defaultValue: 'http://34.156.12.77/api/children', description: 'Mother API URL used by post-deploy smoke tests')
+    string(name: 'PROD_CHILD_HEALTH_BRAZIL', defaultValue: 'http://35.205.81.113:3000/health', description: 'Brazil child health URL used by post-deploy smoke tests')
+    string(name: 'PROD_CHILD_HEALTH_COLOMBIA', defaultValue: 'http://34.62.99.9:3000/health', description: 'Colombia child health URL used by post-deploy smoke tests')
+    string(name: 'PROD_CHILD_HEALTH_ECUADOR', defaultValue: 'http://34.52.149.208:3000/health', description: 'Ecuador child health URL used by post-deploy smoke tests')
     string(name: 'PROD_HOST_MOTHER', defaultValue: '34.156.12.77', description: 'Production host/IP for mother VM')
     string(name: 'PROD_HOST_BRAZIL', defaultValue: '35.205.81.113', description: 'Production host/IP for Brazil VM')
     string(name: 'PROD_HOST_COLOMBIA', defaultValue: '34.62.99.9', description: 'Production host/IP for Colombia VM')
