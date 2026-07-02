@@ -257,6 +257,7 @@ public class AggregationService {
                 for (Object item : list) {
                     if (item instanceof Map<?, ?> rawItem) {
                         lots.add(new ExpeditionLotView(
+                            asInteger(rawItem.get("lotId")),
                             valueAsString(rawItem.get("lotReference")),
                             asInteger(rawItem.get("quantiteExpediee")),
                             asDouble(rawItem.get("poidsExpedieKg")).orElse(null)
@@ -482,6 +483,6 @@ public class AggregationService {
     ) {
     }
 
-    public record ExpeditionLotView(String lotReference, Integer quantiteExpediee, Double poidsExpedieKg) {
+    public record ExpeditionLotView(Integer lotId, String lotReference, Integer quantiteExpediee, Double poidsExpedieKg) {
     }
 }

@@ -1222,9 +1222,13 @@ export class AppComponent implements OnInit, OnDestroy {
       .replace(/[^a-z0-9]/g, '');
   }
 
-  private serializeExpeditionLots(lots: { lotId: number; quantiteExpediee: number | null }[]): string {
+  private serializeExpeditionLots(lots: { lotId?: number | null; lotReference?: string | null; quantiteExpediee: number | null }[]): string {
     return lots
-      .map((lot) => `${lot.lotId}:${lot.quantiteExpediee ?? ''}`)
+      .map((lot) => {
+        const lotIdentifier = Number.isFinite(lot.lotId) ? String(lot.lotId) : (lot.lotReference?.trim() ?? '');
+        return lotIdentifier ? `${lotIdentifier}:${lot.quantiteExpediee ?? ''}` : '';
+      })
+      .filter(Boolean)
       .join(', ');
   }
 }
