@@ -1222,13 +1222,45 @@ export class AppComponent implements OnInit, OnDestroy {
       .replace(/[^a-z0-9]/g, '');
   }
 
-  private serializeExpeditionLots(lots: { lotId?: number | null; lotReference?: string | null; quantiteExpediee: number | null }[]): string {
+  private serializeExpeditionLots(
+    lots: {
+      lotId?: number | null;
+      idLot?: number | null;
+      lotReference?: string | null;
+      lot_reference?: string | null;
+      quantiteExpediee?: number | null;
+      quantite_expediee?: number | null;
+    }[],
+  ): string {
     return lots
       .map((lot) => {
-        const lotIdentifier = Number.isFinite(lot.lotId) ? String(lot.lotId) : (lot.lotReference?.trim() ?? '');
-        return lotIdentifier ? `${lotIdentifier}:${lot.quantiteExpediee ?? ''}` : '';
+        const lotId = this.firstFiniteInteger(lot.lotId, lot.idLot);
+        const lotReference = (lot.lotReference ?? lot.lot_reference ?? '').trim();
+        const quantite = this.firstFiniteInteger(lot.quantiteExpediee, lot.quantite_expediee);
+        const lotIdentifier = lotId !== null ? String(lotId) : lotReference;
+
+        if (!lotIdentifier || quantite === null || quantite <= 0) {
+          return '';
+        }
+
+        return `${lotIdentifier}:${quantite}`;
       })
       .filter(Boolean)
       .join(', ');
+  }
+
+  private firstFiniteInteger(...values: Array<number | null | undefined>): number | null {
+    for (const value of values) {
+      if (value == null) {
+        continue;
+      }
+
+      const numeric = Number(value);
+      if (Number.isFinite(numeric)) {
+        return Math.trunc(numeric);
+      }
+    }
+
+    return null;
   }
 }
