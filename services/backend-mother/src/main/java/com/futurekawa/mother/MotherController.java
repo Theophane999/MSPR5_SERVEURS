@@ -16,7 +16,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -70,6 +72,19 @@ public class MotherController {
     @DeleteMapping("/api/children/{childName}/expeditions/{expeditionId}")
     public ResponseEntity<String> deleteExpedition(@PathVariable String childName, @PathVariable String expeditionId) {
         return proxyToChild(childName, "DELETE", "/api/expeditions/" + expeditionId, null);
+    }
+
+    @RequestMapping(
+        method = RequestMethod.OPTIONS,
+        path = {
+            "/api/children/{childName}/lots",
+            "/api/children/{childName}/lots/{lotId}",
+            "/api/children/{childName}/expeditions",
+            "/api/children/{childName}/expeditions/{expeditionId}"
+        }
+    )
+    public ResponseEntity<Void> optionsProxy() {
+        return ResponseEntity.noContent().build();
     }
 
     private ResponseEntity<String> proxyToChild(String childName, String method, String path, String payload) {
