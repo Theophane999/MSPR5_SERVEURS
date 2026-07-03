@@ -36,8 +36,10 @@ public class ExpeditionController {
 
     @GetMapping("/api/expeditions/{expeditionId}")
     public Map<String, Object> expeditionById(@PathVariable long expeditionId) {
-        return stockRepository
-            .findExpeditionByIdAndEntrepot(expeditionId, entrepotId)
+        List<Map<String, Object>> expeditions = stockRepository.findExpeditionsByEntrepot(entrepotId);
+        return expeditions.stream()
+            .filter(expedition -> matchesId(expedition.get("id"), expeditionId))
+            .findFirst()
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Expedition introuvable"));
     }
 
@@ -91,5 +93,21 @@ public class ExpeditionController {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private boolean matchesId(Object value, long expectedId) {
+        if (value instanceof Number number) {
+            return number.longValue() == expectedId;
+        }
+
+        if (value == null) {
+            return false;
+        }
+
+        try {
+            return Long.parseLong(String.valueOf(value)) == expectedId;
+        } catch (NumberFormatException exception) {
+            return false;
+        }
     }
 }

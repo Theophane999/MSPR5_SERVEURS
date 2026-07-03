@@ -8,7 +8,7 @@ groups:
     rules:
       - uid: futurekawa-cpu-high
         title: FutureKawa CPU élevée
-        condition: C
+        condition: B
         for: 5m
         noDataState: Alerting
         execErrState: Alerting
@@ -52,19 +52,10 @@ groups:
                   reducer:
                     type: avg
                     params: []
-          - refId: C
-            datasourceUid: __expr__
-            model:
-              type: math
-              expression: $B
-              refId: C
-              intervalMs: 1000
-              maxDataPoints: 43200
-              instant: true
 
       - uid: futurekawa-memory-high
         title: FutureKawa mémoire heap élevée
-        condition: C
+        condition: B
         for: 5m
         noDataState: Alerting
         execErrState: Alerting
@@ -108,19 +99,10 @@ groups:
                   reducer:
                     type: avg
                     params: []
-          - refId: C
-            datasourceUid: __expr__
-            model:
-              type: math
-              expression: $B
-              refId: C
-              intervalMs: 1000
-              maxDataPoints: 43200
-              instant: true
 
       - uid: futurekawa-backend-down
         title: FutureKawa backend indisponible
-        condition: C
+        condition: B
         for: 2m
         noDataState: Alerting
         execErrState: Alerting
@@ -164,15 +146,6 @@ groups:
                   reducer:
                     type: last
                     params: []
-          - refId: C
-            datasourceUid: __expr__
-            model:
-              type: math
-              expression: $B
-              refId: C
-              intervalMs: 1000
-              maxDataPoints: 43200
-              instant: true
 
   - orgId: 1
     name: futurekawa-capteurs-pays
@@ -181,7 +154,7 @@ groups:
     rules:
       - uid: futurekawa-brazil-temp-out-of-range
         title: Bresil temperature hors plage
-        condition: C
+        condition: B
         for: 2m
         noDataState: Alerting
         execErrState: Alerting
@@ -227,19 +200,10 @@ groups:
                   reducer:
                     type: last
                     params: []
-          - refId: C
-            datasourceUid: __expr__
-            model:
-              type: math
-              expression: $B
-              refId: C
-              intervalMs: 1000
-              maxDataPoints: 43200
-              instant: true
 
       - uid: futurekawa-brazil-humidity-out-of-range
         title: Bresil humidite hors plage
-        condition: C
+        condition: B
         for: 2m
         noDataState: Alerting
         execErrState: Alerting
@@ -285,19 +249,10 @@ groups:
                   reducer:
                     type: last
                     params: []
-          - refId: C
-            datasourceUid: __expr__
-            model:
-              type: math
-              expression: $B
-              refId: C
-              intervalMs: 1000
-              maxDataPoints: 43200
-              instant: true
 
       - uid: futurekawa-ecuador-temp-out-of-range
         title: Equateur temperature hors plage
-        condition: C
+        condition: B
         for: 2m
         noDataState: Alerting
         execErrState: Alerting
@@ -343,19 +298,10 @@ groups:
                   reducer:
                     type: last
                     params: []
-          - refId: C
-            datasourceUid: __expr__
-            model:
-              type: math
-              expression: $B
-              refId: C
-              intervalMs: 1000
-              maxDataPoints: 43200
-              instant: true
 
       - uid: futurekawa-ecuador-humidity-out-of-range
         title: Equateur humidite hors plage
-        condition: C
+        condition: B
         for: 2m
         noDataState: Alerting
         execErrState: Alerting
@@ -401,19 +347,10 @@ groups:
                   reducer:
                     type: last
                     params: []
-          - refId: C
-            datasourceUid: __expr__
-            model:
-              type: math
-              expression: $B
-              refId: C
-              intervalMs: 1000
-              maxDataPoints: 43200
-              instant: true
 
       - uid: futurekawa-colombia-temp-out-of-range
         title: Colombie temperature hors plage
-        condition: C
+        condition: B
         for: 2m
         noDataState: Alerting
         execErrState: Alerting
@@ -459,19 +396,10 @@ groups:
                   reducer:
                     type: last
                     params: []
-          - refId: C
-            datasourceUid: __expr__
-            model:
-              type: math
-              expression: $B
-              refId: C
-              intervalMs: 1000
-              maxDataPoints: 43200
-              instant: true
 
-      - uid: futurekawa-colombia-humidity-out-of-range
+      - uid: futurekawa-colombia-hum-out-of-range
         title: Colombie humidite hors plage
-        condition: C
+        condition: B
         for: 2m
         noDataState: Alerting
         execErrState: Alerting
@@ -517,12 +445,3 @@ groups:
                   reducer:
                     type: last
                     params: []
-          - refId: C
-            datasourceUid: __expr__
-            model:
-              type: math
-              expression: $B
-              refId: C
-              intervalMs: 1000
-              maxDataPoints: 43200
-              instant: true

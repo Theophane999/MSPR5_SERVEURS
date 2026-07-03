@@ -37,8 +37,10 @@ public class StockController {
 
     @GetMapping("/api/lots/{lotId}")
     public Map<String, Object> lotById(@PathVariable long lotId) {
-        return stockRepository
-            .findLotByIdAndEntrepot(lotId, entrepotId)
+        List<Map<String, Object>> lots = stockRepository.findLotsByEntrepot(entrepotId);
+        return lots.stream()
+            .filter(lot -> matchesId(lot.get("id"), lotId))
+            .findFirst()
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lot introuvable"));
     }
 
@@ -90,5 +92,21 @@ public class StockController {
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private boolean matchesId(Object value, long expectedId) {
+        if (value instanceof Number number) {
+            return number.longValue() == expectedId;
+        }
+
+        if (value == null) {
+            return false;
+        }
+
+        try {
+            return Long.parseLong(String.valueOf(value)) == expectedId;
+        } catch (NumberFormatException exception) {
+            return false;
+        }
     }
 }

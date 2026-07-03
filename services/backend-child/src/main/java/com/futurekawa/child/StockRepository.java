@@ -55,6 +55,20 @@ public class StockRepository {
         return Optional.of(rows.get(0));
     }
 
+    public Optional<Map<String, Object>> findLotById(long lotId) {
+        List<Map<String, Object>> rows = jdbc.query(
+            LOTS_SELECT + "WHERE l.\"ID_LOT\" = ?",
+            (rs, rowNum) -> mapLotRow(rs),
+            lotId
+        );
+
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+
+        return Optional.of(rows.get(0));
+    }
+
     public Map<String, Object> createLot(int idEntrepot, LotPayload payload) {
         LocalDate storageDate = parseStorageDate(payload.storageDate());
         Integer chargementId = jdbc.queryForObject(
@@ -155,6 +169,28 @@ public class StockRepository {
             (rs, rowNum) -> mapExpeditionRow(rs, idEntrepot),
             expeditionId,
             idEntrepot
+        );
+
+        if (rows.isEmpty()) {
+            return Optional.empty();
+        }
+
+        return Optional.of(rows.get(0));
+    }
+
+    public Optional<Map<String, Object>> findExpeditionById(long expeditionId) {
+        List<Map<String, Object>> rows = jdbc.query(
+            "SELECT DISTINCT e.\"ID_expedition\" AS id, e.\"statut\" AS statut, e.\"destination_pays\" AS destination_pays, " +
+                "e.\"destination_ville\" AS destination_ville, e.\"destination_client\" AS destination_client, " +
+                "e.\"poids_total_kg\" AS poids_total_kg, e.\"tracking_transporteur\" AS tracking_transporteur, " +
+                "e.\"quai_depart\" AS quai_depart, e.\"transporteur\" AS transporteur, e.\"livreur_nom\" AS livreur_nom, " +
+                "e.\"livreur_telephone\" AS livreur_telephone, e.\"depart_at\" AS depart_at, e.\"arrivee_estimee_at\" AS arrivee_estimee_at " +
+                "FROM \"expedition\" e " +
+                "JOIN \"expedition_lot\" el ON el.\"ID_expedition\" = e.\"ID_expedition\" " +
+                "JOIN \"lot\" l ON l.\"ID_LOT\" = el.\"ID_LOT\" " +
+                "WHERE e.\"ID_expedition\" = ?",
+            (rs, rowNum) -> mapExpeditionRow(rs, 0),
+            expeditionId
         );
 
         if (rows.isEmpty()) {
