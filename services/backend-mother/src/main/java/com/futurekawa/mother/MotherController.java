@@ -11,6 +11,7 @@ import java.util.Map;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -42,6 +43,26 @@ public class MotherController {
     @GetMapping("/api/children")
     public AggregationService.AggregatedResponse children() {
         return aggregationService.aggregate();
+    }
+
+    @GetMapping("/api/children/{childName}/lots")
+    public ResponseEntity<String> childLots(@PathVariable String childName) {
+        return proxyToChild(childName, "GET", "/api/lots", null);
+    }
+
+    @GetMapping("/api/children/{childName}/lots/{lotId}")
+    public ResponseEntity<String> childLot(@PathVariable String childName, @PathVariable String lotId) {
+        return proxyToChild(childName, "GET", "/api/lots/" + lotId, null);
+    }
+
+    @GetMapping("/api/children/{childName}/expeditions")
+    public ResponseEntity<String> childExpeditions(@PathVariable String childName) {
+        return proxyToChild(childName, "GET", "/api/expeditions", null);
+    }
+
+    @GetMapping("/api/children/{childName}/expeditions/{expeditionId}")
+    public ResponseEntity<String> childExpedition(@PathVariable String childName, @PathVariable String expeditionId) {
+        return proxyToChild(childName, "GET", "/api/expeditions/" + expeditionId, null);
     }
 
     @PostMapping("/api/children/{childName}/lots")
@@ -102,6 +123,7 @@ public class MotherController {
 
         HttpRequest request;
         switch (method) {
+            case "GET" -> request = requestBuilder.GET().build();
             case "POST" -> {
                 request = requestBuilder
                     .header("Content-Type", "application/json")
